@@ -6,4 +6,4 @@ node_modules/
 /generated/prisma/
 
 # Uploaded files
-/uploads/
+/uploads/posts
