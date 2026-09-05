@@ -3,31 +3,27 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import cloudinary from '../config/cloudinary.js';
 import { Readable } from 'stream';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // ============================================
-// 1. إعداد مجلد مؤقت (للتخزين المؤقت قبل الرفع لـ Cloudinary)
+// 1. اختيار التخزين حسب البيئة
 // ============================================
 
+const isVercel = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+const memoryStorage = multer.memoryStorage();
 const tempDir = path.join(process.cwd(), 'temp');
 
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
-  console.log('📁 Created temp directory for Cloudinary uploads');
-}
-
 // ============================================
-// 2. STORAGE CONFIGURATION (تخزين مؤقت)
+// 2. STORAGE CONFIGURATION
 // ============================================
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // تخزين الملف في مجلد temp مؤقتاً
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+      console.log('📁 Created temp directory for Cloudinary uploads');
+    }
     cb(null, tempDir);
   },
   filename: (req, file, cb) => {
@@ -37,6 +33,8 @@ const storage = multer.diskStorage({
     cb(null, `${prefix}-${uniqueSuffix}${ext}`);
   }
 });
+
+const selectedStorage = isVercel ? memoryStorage : storage;
 
 // ============================================
 // 3. FILE FILTER - دعم الصور والفيديوهات
@@ -75,7 +73,7 @@ const fileFilter = (req, file, cb) => {
 // ============================================
 
 const upload = multer({
-  storage: storage,
+  storage: selectedStorage,
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB للفيديوهات
   },
@@ -92,7 +90,7 @@ const upload = multer({
  * @param {Object} options - خيارات الرفع
  * @returns {Promise<Object>} - بيانات الملف المرفوع
  */
-const uploadToCloudinaryFn = async (filePath, options = {}) => {
+const uploadFileFromPath = async (filePath, options = {}) => {
   try {
     // تحديد المجلد حسب نوع الملف
     let folder = options.folder || 'elrawda/uploads';
@@ -136,6 +134,27 @@ const uploadToCloudinaryFn = async (filePath, options = {}) => {
     console.error('❌ Cloudinary upload error:', error);
     throw error;
   }
+};
+
+const uploadToCloudinaryFn = async (file, options = {}) => {
+  if (!file) {
+    throw new Error('❌ لم يتم توفير ملف للرفع');
+  }
+
+  if (Buffer.isBuffer(file)) {
+    return uploadBufferToCloudinaryFn(file, options);
+  }
+
+  if (typeof file === 'object' && file.buffer) {
+    return uploadBufferToCloudinaryFn(file.buffer, options);
+  }
+
+  const filePath = typeof file === 'string' ? file : file.path;
+  if (filePath) {
+    return uploadFileFromPath(filePath, options);
+  }
+
+  throw new Error('❌ تنسيق ملف غير مدعوم');
 };
 
 // ============================================

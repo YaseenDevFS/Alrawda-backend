@@ -28,7 +28,7 @@ export const uploadSingleFile = async (req, res) => {
     }
 
     // رفع الملف إلى Cloudinary
-    const result = await uploadToCloudinary(req.file.path, {
+    const result = await uploadToCloudinary(req.file, {
       folder: folder,
       resource_type: req.file.mimetype?.startsWith('video/') ? 'video' : 'image',
     });
@@ -38,8 +38,8 @@ export const uploadSingleFile = async (req, res) => {
       success: true,
       message: '✅ تم رفع الملف بنجاح',
       file: {
-        url: result.secure_url,
-        publicId: result.public_id,
+        url: result.url,
+        publicId: result.publicId,
         format: result.format,
         size: result.bytes,
         width: result.width,
@@ -67,14 +67,14 @@ export const uploadMultipleFiles = async (req, res) => {
 
     // رفع كل الملفات
     const uploadPromises = req.files.map(async (file) => {
-      const result = await uploadToCloudinary(file.path, {
+      const result = await uploadToCloudinary(file, {
         folder: 'elrawda/uploads',
         resource_type: file.mimetype?.startsWith('video/') ? 'video' : 'image',
       });
 
       return {
-        url: result.secure_url,
-        publicId: result.public_id,
+        url: result.url,
+        publicId: result.publicId,
         format: result.format,
         size: result.bytes,
       };
