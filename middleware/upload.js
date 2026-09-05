@@ -4,95 +4,351 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import cloudinary from '../config/cloudinary.js';
+import { Readable } from 'stream';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Create upload directories
-const uploadDir = path.join(process.cwd(), 'uploads/posts');
-const storyDir = path.join(process.cwd(), 'uploads/stories');
+// ============================================
+// 1. إعداد مجلد مؤقت (للتخزين المؤقت قبل الرفع لـ Cloudinary)
+// ============================================
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log('📁 Created uploads/posts directory');
+const tempDir = path.join(process.cwd(), 'temp');
+
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+  console.log('📁 Created temp directory for Cloudinary uploads');
 }
 
-if (!fs.existsSync(storyDir)) {
-  fs.mkdirSync(storyDir, { recursive: true });
-  console.log('📁 Created uploads/stories directory');
-}
-
-// ============================
-//  STORAGE CONFIGURATION
-// ============================
+// ============================================
+// 2. STORAGE CONFIGURATION (تخزين مؤقت)
+// ============================================
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Determine destination based on file type or route
-    const route = req.route?.path || '';
-    if (route.includes('story')) {
-      cb(null, storyDir);
-    } else {
-      cb(null, uploadDir);
-    }
+    // تخزين الملف في مجلد temp مؤقتاً
+    cb(null, tempDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    const prefix = file.mimetype.startsWith('video/') ? 'video' : 'image';
+    const prefix = file.mimetype?.startsWith('video/') ? 'video' : 'image';
     cb(null, `${prefix}-${uniqueSuffix}${ext}`);
   }
 });
 
-// ============================
-//  FILE FILTER - SUPPORT IMAGES AND VIDEOS
-// ============================
+// ============================================
+// 3. FILE FILTER - دعم الصور والفيديوهات
+// ============================================
 
 const fileFilter = (req, file, cb) => {
-  // ✅ Support both images and videos
-  const allowedImageTypes = /jpeg|jpg|png|gif|webp/;
-  const allowedVideoTypes = /mp4|mov|avi|mkv|webm|m4v|3gp|mpeg/;
+  // ✅ دعم الصور والفيديوهات
+  const allowedImageTypes = /jpeg|jpg|png|gif|webp|svg|bmp|tiff/;
+  const allowedVideoTypes = /mp4|mov|avi|mkv|webm|m4v|3gp|mpeg|flv/;
   
   const extname = path.extname(file.originalname).toLowerCase();
   const mimetype = file.mimetype;
   
   console.log('📁 File type check:', { extname, mimetype, originalname: file.originalname });
   
-  // Check if it's an image
-  if (allowedImageTypes.test(extname) && allowedImageTypes.test(mimetype)) {
+  // التحقق من الصور
+  if (allowedImageTypes.test(extname) && mimetype?.startsWith('image/')) {
     return cb(null, true);
   }
   
-  // Check if it's a video
-  if (allowedVideoTypes.test(extname) && mimetype.startsWith('video/')) {
+  // التحقق من الفيديوهات
+  if (allowedVideoTypes.test(extname) && mimetype?.startsWith('video/')) {
     return cb(null, true);
   }
   
-  // ✅ Also accept if mimetype starts with video/ regardless of extension
-  if (mimetype.startsWith('video/')) {
+  // ✅ قبول أي ملف إذا كان نوعه صورة أو فيديو
+  if (mimetype?.startsWith('image/') || mimetype?.startsWith('video/')) {
     return cb(null, true);
   }
   
-  cb(new Error('Only images (jpeg, jpg, png, gif, webp) and videos (mp4, mov, avi, mkv, webm, m4v, 3gp) are allowed'));
+  cb(new Error('❌ فقط الصور (jpeg, jpg, png, gif, webp) والفيديوهات (mp4, mov, avi, mkv, webm, m4v, 3gp) مسموح بها'));
 };
 
-// ============================
-//  MULTER CONFIG
-// ============================
+// ============================================
+// 4. MULTER CONFIG
+// ============================================
 
-export const upload = multer({
+const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB for videos
+    fileSize: 100 * 1024 * 1024, // 100MB للفيديوهات
   },
   fileFilter: fileFilter
 });
 
-// ============================
-//  ERROR HANDLER
-// ============================
+// ============================================
+// 5. دوال رفع الملفات إلى Cloudinary
+// ============================================
 
-export const handleUploadError = (err, req, res, next) => {
+/**
+ * رفع ملف إلى Cloudinary
+ * @param {string} filePath - مسار الملف المحلي
+ * @param {Object} options - خيارات الرفع
+ * @returns {Promise<Object>} - بيانات الملف المرفوع
+ */
+const uploadToCloudinaryFn = async (filePath, options = {}) => {
+  try {
+    // تحديد المجلد حسب نوع الملف
+    let folder = options.folder || 'elrawda/uploads';
+    const resourceType = options.resource_type || 'auto';
+    
+    console.log(`☁️ Uploading to Cloudinary: ${filePath}`);
+    console.log(`📁 Folder: ${folder}, Resource: ${resourceType}`);
+    
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder: folder,
+      resource_type: resourceType,
+      quality: options.quality || 'auto:best',
+      fetch_format: options.fetch_format || 'auto',
+      transformation: options.transformation || [],
+      ...options,
+    });
+    
+    console.log(`✅ Uploaded to Cloudinary: ${result.public_id}`);
+    
+    // حذف الملف المؤقت بعد الرفع
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`🗑️ Deleted temp file: ${filePath}`);
+      }
+    } catch (unlinkError) {
+      console.warn(`⚠️ Could not delete temp file: ${filePath}`);
+    }
+    
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+      format: result.format,
+      bytes: result.bytes,
+      width: result.width,
+      height: result.height,
+      resourceType: result.resource_type,
+      createdAt: result.created_at,
+    };
+  } catch (error) {
+    console.error('❌ Cloudinary upload error:', error);
+    throw error;
+  }
+};
+
+// ============================================
+// 6. دوال حذف الملفات من Cloudinary
+// ============================================
+
+/**
+ * حذف ملف من Cloudinary
+ * @param {string} publicId - المعرف العام للملف
+ * @param {Object} options - خيارات الحذف
+ * @returns {Promise<Object>} - نتيجة الحذف
+ */
+const deleteFromCloudinaryFn = async (publicId, options = {}) => {
+  try {
+    if (!publicId) {
+      console.warn('⚠️ No publicId provided for deletion');
+      return null;
+    }
+    
+    console.log(`🗑️ Deleting from Cloudinary: ${publicId}`);
+    
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: options.resource_type || 'image',
+      ...options,
+    });
+    
+    console.log(`✅ Deleted from Cloudinary: ${publicId}`);
+    return result;
+  } catch (error) {
+    console.error('❌ Cloudinary delete error:', error);
+    throw error;
+  }
+};
+
+/**
+ * حذف ملف قديم (يستخدم في التحديثات)
+ * @param {string} fileUrl - رابط الملف القديم
+ * @returns {Promise<Object>} - نتيجة الحذف
+ */
+const deleteOldImageFn = async (fileUrl) => {
+  try {
+    if (!fileUrl) return null;
+    
+    // استخراج publicId من رابط Cloudinary
+    const publicId = extractPublicIdFromUrlFn(fileUrl);
+    
+    if (!publicId) {
+      console.warn('⚠️ Could not extract publicId from URL:', fileUrl);
+      return null;
+    }
+    
+    return await deleteFromCloudinaryFn(publicId);
+  } catch (error) {
+    console.error('❌ Error deleting old image:', error);
+    return null;
+  }
+};
+
+// ============================================
+// 7. دوال استخراج المعلومات من الروابط
+// ============================================
+
+/**
+ * استخراج publicId من رابط Cloudinary
+ * @param {string} url - رابط Cloudinary
+ * @returns {string|null} - المعرف العام
+ */
+const extractPublicIdFromUrlFn = (url) => {
+  try {
+    if (!url) return null;
+    
+    // إذا كان الرابط من Cloudinary
+    if (url.includes('cloudinary.com')) {
+      // مثال: https://res.cloudinary.com/cloud_name/image/upload/v123456/elrawda/posts/image-12345.jpg
+      const parts = url.split('/');
+      const filename = parts[parts.length - 1];
+      const publicId = filename.split('.')[0];
+      
+      // استخراج المجلد
+      const folderMatch = url.match(/\/upload\/v\d+\/(.+)\//);
+      if (folderMatch && folderMatch[1]) {
+        return `${folderMatch[1]}/${publicId}`;
+      }
+      return publicId;
+    }
+    
+    // إذا كان الرابط محلياً (للتوافق مع الإصدارات القديمة)
+    if (url.startsWith('/uploads/') || url.includes('/uploads/')) {
+      const filename = path.basename(url);
+      return filename.split('.')[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ Error extracting publicId:', error);
+    return null;
+  }
+};
+
+/**
+ * الحصول على رابط Cloudinary
+ * @param {string} publicId - المعرف العام
+ * @param {Object} options - خيارات التحويل
+ * @returns {string} - الرابط
+ */
+const getCloudinaryUrlFn = (publicId, options = {}) => {
+  if (!publicId) return null;
+  
+  return cloudinary.url(publicId, {
+    secure: true,
+    quality: 'auto:best',
+    fetch_format: 'auto',
+    ...options,
+  });
+};
+
+/**
+ * الحصول على رابط الصورة (alias)
+ */
+const getImageUrlFn = (publicId, options = {}) => {
+  return getCloudinaryUrlFn(publicId, options);
+};
+
+// ============================================
+// 8. دوال رفع من Buffer (بدون تخزين مؤقت)
+// ============================================
+
+/**
+ * رفع ملف من Buffer مباشرة إلى Cloudinary
+ * @param {Buffer} buffer - بيانات الملف
+ * @param {Object} options - خيارات الرفع
+ * @returns {Promise<Object>} - بيانات الملف المرفوع
+ */
+const uploadBufferToCloudinaryFn = async (buffer, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const folder = options.folder || 'elrawda/uploads';
+    const resourceType = options.resource_type || 'auto';
+    
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: folder,
+        resource_type: resourceType,
+        quality: options.quality || 'auto:best',
+        fetch_format: options.fetch_format || 'auto',
+        ...options,
+      },
+      (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id,
+            format: result.format,
+            bytes: result.bytes,
+            width: result.width,
+            height: result.height,
+            resourceType: result.resource_type,
+          });
+        }
+      }
+    );
+    
+    // تحويل Buffer إلى Stream
+    const readableStream = new Readable();
+    readableStream.push(buffer);
+    readableStream.push(null);
+    readableStream.pipe(stream);
+  });
+};
+
+// ============================================
+// 9. دالة لرفع ملف من رابط
+// ============================================
+
+/**
+ * رفع ملف من رابط URL إلى Cloudinary
+ * @param {string} url - رابط الملف
+ * @param {Object} options - خيارات الرفع
+ * @returns {Promise<Object>} - بيانات الملف المرفوع
+ */
+const uploadFromUrlToCloudinaryFn = async (url, options = {}) => {
+  try {
+    const folder = options.folder || 'elrawda/uploads';
+    
+    const result = await cloudinary.uploader.upload(url, {
+      folder: folder,
+      resource_type: options.resource_type || 'auto',
+      quality: 'auto:best',
+      fetch_format: 'auto',
+      ...options,
+    });
+    
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+      format: result.format,
+      bytes: result.bytes,
+      width: result.width,
+      height: result.height,
+      resourceType: result.resource_type,
+    };
+  } catch (error) {
+    console.error('❌ Cloudinary upload from URL error:', error);
+    throw error;
+  }
+};
+
+// ============================================
+// 10. ERROR HANDLER
+// ============================================
+
+const handleUploadErrorFn = (err, req, res, next) => {
   console.log('📁 File received:', req.file);
   console.log('📝 Body:', req.body);
   
@@ -100,7 +356,7 @@ export const handleUploadError = (err, req, res, next) => {
     if (err.code === 'FILE_TOO_LARGE') {
       return res.status(400).json({ 
         success: false,
-        message: 'File too large. Max size: 100MB for videos, 10MB for images' 
+        message: '❌ الملف كبير جداً. الحد الأقصى: 100MB للفيديوهات، 10MB للصور' 
       });
     }
     return res.status(400).json({ 
@@ -117,31 +373,21 @@ export const handleUploadError = (err, req, res, next) => {
   next();
 };
 
-// ============================
-//  HELPERS
-// ============================
+// ============================================
+// 11. EXPORTS - ✅ تصدير كل شيء مرة واحدة فقط
+// ============================================
 
-export const deleteOldImage = async (filePath) => {
-  if (!filePath) return;
-  try {
-    const fullPath = path.join(process.cwd(), filePath);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      console.log('🗑️ Old file deleted:', filePath);
-    }
-  } catch (error) {
-    console.error('Error deleting file:', error);
-  }
-};
+// ✅ تصدير upload كـ default export
+export default upload;
+export { upload };
 
-export const getImageUrl = (req, filePath) => {
-  if (!filePath) return null;
-  const fileName = path.basename(filePath);
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-  
-  // Determine the directory
-  if (filePath.includes('stories')) {
-    return `${baseUrl}/uploads/stories/${fileName}`;
-  }
-  return `${baseUrl}/uploads/posts/${fileName}`;
-};
+// ✅ تصدير كل الدوال كـ named exports (مرة واحدة فقط)
+export const uploadToCloudinary = uploadToCloudinaryFn;
+export const deleteFromCloudinary = deleteFromCloudinaryFn;
+export const deleteOldImage = deleteOldImageFn;
+export const extractPublicIdFromUrl = extractPublicIdFromUrlFn;
+export const getCloudinaryUrl = getCloudinaryUrlFn;
+export const getImageUrl = getImageUrlFn;
+export const uploadBufferToCloudinary = uploadBufferToCloudinaryFn;
+export const uploadFromUrlToCloudinary = uploadFromUrlToCloudinaryFn;
+export const handleUploadError = handleUploadErrorFn;

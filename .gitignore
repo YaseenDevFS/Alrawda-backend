@@ -6,4 +6,7 @@ node_modules/
 /generated/prisma/
 
 # Uploaded files
-/uploads/posts
+/uploads/posts"node_modules/" 
+".env" 
+"*.apk" 
+"uploads/" 

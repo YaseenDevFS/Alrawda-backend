@@ -1,4 +1,5 @@
 // backend/server.js
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -13,6 +14,7 @@ import postRoutes from "./routes/postRoutes.js";
 import commentRoutes from "./routes/commentRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import storyRoutes from "./routes/storyRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js"; // ✅ إضافة مسارات الرفع
 
 // Import Models
 import { createUsersTable, createFollowsTable } from "./models/userModel.js";
@@ -43,36 +45,22 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ============================
-//  ✅ Create Upload Directories
+//  ✅ Create Temporary Upload Directory (for Cloudinary)
 // ============================
-const uploadsDir = path.join(process.cwd(), 'uploads');
-const postsDir = path.join(process.cwd(), 'uploads/posts');
-const storiesDir = path.join(process.cwd(), 'uploads/stories');
+const tempDir = path.join(process.cwd(), 'temp');
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('📁 Created uploads directory');
-}
-if (!fs.existsSync(postsDir)) {
-  fs.mkdirSync(postsDir, { recursive: true });
-  console.log('📁 Created posts directory');
-}
-if (!fs.existsSync(storiesDir)) {
-  fs.mkdirSync(storiesDir, { recursive: true });
-  console.log('📁 Created stories directory');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+  console.log('📁 Created temp directory for Cloudinary uploads');
 }
 
 // ============================
-//  ✅ Serve Static Files (Images & Videos)
+//  ✅ Cloudinary Status Check
 // ============================
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-
-// ✅ Add CORS for static files
-app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET');
-  next();
-}, express.static(path.join(process.cwd(), 'uploads')));
+console.log('☁️ Cloudinary Status:');
+console.log(`   Cloud Name: ${process.env.CLOUDINARY_CLOUD_NAME ? '✅ Configured' : '❌ Missing'}`);
+console.log(`   API Key: ${process.env.CLOUDINARY_API_KEY ? '✅ Configured' : '❌ Missing'}`);
+console.log(`   API Secret: ${process.env.CLOUDINARY_API_SECRET ? '✅ Configured' : '❌ Missing'}`);
 
 // ============================
 //  ✅ Debug Middleware - Log all requests
@@ -90,6 +78,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/stories', storyRoutes);
+app.use('/api', uploadRoutes); // ✅ إضافة مسارات رفع الملفات
 
 // ============================
 //  Health Check
@@ -99,9 +88,13 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'Server is running',
     timestamp: new Date().toISOString(),
-    uploads: {
-      posts: '/uploads/posts/',
-      stories: '/uploads/stories/'
+    cloudinary: {
+      configured: !!process.env.CLOUDINARY_CLOUD_NAME,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'Not configured',
+    },
+    upload: {
+      method: 'Cloudinary',
+      tempFolder: '/temp/',
     }
   });
 });
@@ -319,9 +312,15 @@ const startServer = async () => {
       console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
       console.log(`📡 API base: http://localhost:${PORT}/api`);
-      console.log(`🖼️ Images: http://localhost:${PORT}/uploads/posts/`);
-      console.log(`📸 Stories: http://localhost:${PORT}/uploads/stories/`);
-      console.log(`\n📋 Available endpoints:`);
+      console.log(`\n☁️ Files are stored on Cloudinary`);
+      console.log(`📁 Temporary uploads: /temp/ (deleted after upload)`);
+      console.log(`\n📋 Upload endpoints:`);
+      console.log(`  POST   /api/upload/single      - Upload single file`);
+      console.log(`  POST   /api/upload/multiple    - Upload multiple files`);
+      console.log(`  POST   /api/upload/fields      - Upload different fields`);
+      console.log(`  DELETE /api/upload/:publicId   - Delete file from Cloudinary`);
+      console.log(`  GET    /api/upload/url/:publicId - Get file URL`);
+      console.log(`\n📋 Available API endpoints:`);
       console.log(`  POST   /api/posts        - Create post (image/video)`);
       console.log(`  GET    /api/posts        - Get all posts`);
       console.log(`  GET    /api/posts/:id    - Get single post`);
