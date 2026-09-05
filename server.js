@@ -45,11 +45,15 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ============================
-//  ✅ Create Temporary Upload Directory (for Cloudinary)
+//  ✅ Create Temporary Upload Directory (local only)
 // ============================
+const isServerless = process.env.VERCEL === '1'
+  || process.env.NODE_ENV === 'production'
+  || process.env.AWS_LAMBDA_FUNCTION_NAME
+  || process.cwd() === '/var/task';
 const tempDir = path.join(process.cwd(), 'temp');
 
-if (!fs.existsSync(tempDir)) {
+if (!isServerless && !fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
   console.log('📁 Created temp directory for Cloudinary uploads');
 }
@@ -351,6 +355,8 @@ process.on('unhandledRejection', (reason, promise) => {
 //  Start
 // ============================
 
-startServer();
+if (!isServerless) {
+  startServer();
+}
 
 export default app;
