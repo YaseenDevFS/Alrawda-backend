@@ -10,9 +10,14 @@ import { Readable } from 'stream';
 // 1. اختيار التخزين حسب البيئة
 // ============================================
 
-const isVercel = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+const isServerless = process.env.VERCEL === '1'
+  || process.env.NODE_ENV === 'production'
+  || process.env.AWS_LAMBDA_FUNCTION_NAME
+  || process.cwd() === '/var/task';
 const memoryStorage = multer.memoryStorage();
-const tempDir = path.join(process.cwd(), 'temp');
+const tempDir = isServerless
+  ? path.join('/tmp', 'elrawda')
+  : path.join(process.cwd(), 'temp');
 
 // ============================================
 // 2. STORAGE CONFIGURATION
@@ -34,7 +39,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const selectedStorage = isVercel ? memoryStorage : storage;
+const selectedStorage = isServerless ? memoryStorage : storage;
 
 // ============================================
 // 3. FILE FILTER - دعم الصور والفيديوهات
