@@ -24,7 +24,7 @@ if (process.env.DATABASE_URL) {
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME,
-        ssl: process.env.NODE_ENV === 'production' ? {
+        ssl: process.env.DB_SSL === 'true' ? {
             require: true,
             rejectUnauthorized: false
         } : false

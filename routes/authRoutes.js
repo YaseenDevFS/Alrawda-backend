@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import express from "express";
 import bcrypt from "bcryptjs";
 import { findUserByEmail, createUser, findUserById } from "../models/userModel.js";
-import pool from "../db/db.js";  // ✅ ADD THIS LINE - مهم جداً
+import pool from "../db/db.js";
 import dotenv from "dotenv";
 
 dotenv.config();
