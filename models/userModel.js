@@ -104,13 +104,21 @@ export const findUserById = async (id) => {
     return result.rows[0];
 };
 
-export const createUser = async (name, email, hashedPassword) => {
+export const createUser = async (name, email, hashedPassword, profile = {}) => {
     const query = `
-        INSERT INTO users (name, email, password)
-        VALUES ($1, $2, $3)
-        RETURNING id, name, email, created_at
+        INSERT INTO users (name, email, password, bio, location, role, avatar)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, name, email, bio, location, role, avatar, created_at
     `;
-    const result = await pool.query(query, [name, email, hashedPassword]);
+    const result = await pool.query(query, [
+        name,
+        email,
+        hashedPassword,
+        profile.bio || null,
+        profile.location || null,
+        profile.role || 'Quran Learner',
+        profile.avatar || null,
+    ]);
     return result.rows[0];
 };
 

@@ -12,22 +12,48 @@ const router = express.Router();
 // @route   POST /api/auth/signup
 router.post('/signup', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, bio, location, role, avatar } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
 
         // Validate input
-        if (!name || !email || !password) {
-            return res.status(400).json({ message: "All fields are required" });
+        if (!name?.trim() || !normalizedEmail || !password) {
+            return res.status(400).json({
+                code: "MISSING_FIELDS",
+                message: "Please complete your name, email, and password to create your account."
+            });
         }
 
-        const existingUser = await findUserByEmail(email);
+        if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+            return res.status(400).json({
+                code: "INVALID_EMAIL",
+                message: "That email address does not look right. Please check it and try again."
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                code: "WEAK_PASSWORD",
+                message: "Choose a password with at least 6 characters for better account security."
+            });
+        }
+
+        const existingUser = await findUserByEmail(normalizedEmail);
         
         if (existingUser) {
-            return res.status(400).json({ message: "User already exists" });
+            return res.status(409).json({
+                code: "EMAIL_IN_USE",
+                message: "This email is already registered. Try signing in or use a different email."
+            });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const user = await createUser(name, email, hashedPassword);
+        const user = await createUser(name.trim(), normalizedEmail, hashedPassword, {
+            bio: bio?.trim() || null,
+            location: location?.trim() || null,
+            role: role?.trim() || 'Quran Learner',
+            avatar: avatar?.trim() || null,
+        });
 
         res.status(201).json({
             success: true,
@@ -37,7 +63,16 @@ router.post('/signup', async (req, res) => {
 
     } catch (error) {
         console.error("Signup error:", error);
-        res.status(500).json({ message: "Internal server error", error: error.message });
+        if (error.code === "23505") {
+            return res.status(409).json({
+                code: "EMAIL_IN_USE",
+                message: "This email is already registered. Try signing in or use a different email."
+            });
+        }
+        res.status(500).json({
+            code: "SIGNUP_FAILED",
+            message: "We could not create your account right now. Please try again in a moment."
+        });
     }
 });
 
@@ -45,19 +80,33 @@ router.post('/signup', async (req, res) => {
 router.post("/login", async (req, res) => {
     try {
         const { email, password } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
 
         // Validate input
-        if (!email || !password) {
-            return res.status(400).json({ message: "Email and password are required" });
+        if (!normalizedEmail || !password) {
+            return res.status(400).json({
+                code: "MISSING_CREDENTIALS",
+                message: "Please enter both your email address and password."
+            });
         }
 
-        console.log("Login attempt for email:", email); // Debug log
+        if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+            return res.status(400).json({
+                code: "INVALID_EMAIL",
+                message: "That email address does not look right. Please check it and try again."
+            });
+        }
 
-        const user = await findUserByEmail(email);
+        console.log("Login attempt for email:", normalizedEmail); // Debug log
+
+        const user = await findUserByEmail(normalizedEmail);
 
         if (!user) {
-            console.log("User not found:", email);
-            return res.status(400).json({ message: "Invalid credentials" });
+            console.log("User not found:", normalizedEmail);
+            return res.status(404).json({
+                code: "EMAIL_NOT_FOUND",
+                message: "We could not find an account with this email. Check it or create a new account."
+            });
         }
 
         console.log("User found, comparing password...");
@@ -65,8 +114,11 @@ router.post("/login", async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
-            console.log("Password mismatch for:", email);
-            return res.status(400).json({ message: "Invalid credentials" });
+            console.log("Password mismatch for:", normalizedEmail);
+            return res.status(401).json({
+                code: "WRONG_PASSWORD",
+                message: "That password is incorrect. Please try again or reset your password."
+            });
         }
 
         console.log("Login successful for:", email);
