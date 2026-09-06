@@ -226,29 +226,34 @@ export const createPostWithMultipleImages = async (req, res) => {
 
 export const getPosts = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
+    const requestedLimit = parseInt(req.query.limit, 10) || 20;
+    const limit = Math.min(Math.max(requestedLimit, 1), 10);
     const offset = parseInt(req.query.offset) || 0;
     const userId = req.userId;
     const type = req.query.type;
     
     const posts = await postModel.getPosts(limit, offset, userId, type);
     
-    const postsWithUrls = posts.map(post => ({
-      ...post,
-      imageUrl: post.image ? getImageUrl(req, post.image) : null,
-      videoUrl: post.video ? getImageUrl(req, post.video) : null,
-      mediaType: post.video ? 'video' : (post.image ? 'image' : null),
-      media: post.video ? {
-        uri: getImageUrl(req, post.video),
-        width: post.video_width || 1920,
-        height: post.video_height || 1080,
-        duration: post.video_duration || 0,
-      } : (post.image ? {
-        uri: getImageUrl(req, post.image),
-        width: 800,
-        height: 600,
-      } : null),
-    }));
+    const postsWithUrls = posts.map(post => {
+      const { image, video, ...postData } = post;
+
+      return {
+        ...postData,
+        imageUrl: post.image ? getImageUrl(req, post.image) : null,
+        videoUrl: post.video ? getImageUrl(req, post.video) : null,
+        mediaType: post.video ? 'video' : (post.image ? 'image' : null),
+        media: post.video ? {
+          uri: getImageUrl(req, post.video),
+          width: post.video_width || 1920,
+          height: post.video_height || 1080,
+          duration: post.video_duration || 0,
+        } : (post.image ? {
+          uri: getImageUrl(req, post.image),
+          width: 800,
+          height: 600,
+        } : null),
+      };
+    });
     
     res.json({ success: true, posts: postsWithUrls, limit, offset });
   } catch (error) {
