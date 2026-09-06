@@ -14,8 +14,8 @@ export const toggleLike = async (postId, userId) => {
   } else {
     // Like
     const insertQuery = `
-      INSERT INTO likes (post_id, user_id, reaction_type)
-      VALUES ($1, $2, 'like')
+      INSERT INTO likes (post_id, user_id)
+      VALUES ($1, $2)
       RETURNING id
     `;
     const insertResult = await pool.query(insertQuery, [postId, userId]);
@@ -53,35 +53,4 @@ export const getLikesByUser = async (userId, limit = 20, offset = 0) => {
   `;
   const result = await pool.query(query, [userId, limit, offset]);
   return result.rows;
-};
-
-export const setReaction = async (postId, userId, reactionType) => {
-  const allowedReactions = ['like', 'love', 'angry'];
-  if (reactionType !== null && !allowedReactions.includes(reactionType)) {
-    throw new Error('Invalid reaction type');
-  }
-
-  const existing = await pool.query(
-    'SELECT id, reaction_type FROM likes WHERE post_id = $1 AND user_id = $2',
-    [postId, userId]
-  );
-
-  if (reactionType === null || existing.rows[0]?.reaction_type === reactionType) {
-    await pool.query('DELETE FROM likes WHERE post_id = $1 AND user_id = $2', [postId, userId]);
-    return { reaction: null, liked: false };
-  }
-
-  if (existing.rows.length) {
-    await pool.query(
-      'UPDATE likes SET reaction_type = $1 WHERE post_id = $2 AND user_id = $3',
-      [reactionType, postId, userId]
-    );
-  } else {
-    await pool.query(
-      'INSERT INTO likes (post_id, user_id, reaction_type) VALUES ($1, $2, $3)',
-      [postId, userId, reactionType]
-    );
-  }
-
-  return { reaction: reactionType, liked: true };
 };

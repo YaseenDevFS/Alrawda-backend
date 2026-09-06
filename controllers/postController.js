@@ -615,22 +615,3 @@ export const toggleLike = async (req, res) => {
     res.status(500).json({ message: 'Failed to toggle like' });
   }
 };
-
-export const setReaction = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reaction } = req.body;
-    const result = await likeModel.setReaction(id, req.userId, reaction);
-    const count = await likeModel.getLikeCount(id);
-
-    res.json({
-      success: true,
-      reaction: result.reaction,
-      liked: result.liked,
-      likes_count: count,
-    });
-  } catch (error) {
-    console.error('❌ Set reaction error:', error);
-    res.status(400).json({ message: error.message || 'Failed to set reaction' });
-  }
-};
