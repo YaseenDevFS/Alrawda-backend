@@ -56,8 +56,11 @@ export const follow = async (req, res) => {
     
     res.json({ success: true, following: isFollowing });
   } catch (error) {
-    console.error('Follow error:', error);
-    res.status(500).json({ message: 'Failed to follow user' });
+    console.error('Follow error:', error.message, error.code);
+    res.status(500).json({
+      code: error.code || 'FOLLOW_FAILED',
+      message: error.message || 'Failed to follow user',
+    });
   }
 };
 
@@ -68,8 +71,11 @@ export const unfollow = async (req, res) => {
     
     res.json({ success: true, following: false });
   } catch (error) {
-    console.error('Unfollow error:', error);
-    res.status(500).json({ message: 'Failed to unfollow user' });
+    console.error('Unfollow error:', error.message, error.code);
+    res.status(500).json({
+      code: error.code || 'UNFOLLOW_FAILED',
+      message: error.message || 'Failed to unfollow user',
+    });
   }
 };
 

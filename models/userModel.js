@@ -197,11 +197,24 @@ export const followUser = async (followerId, followingId) => {
     if (followerId === followingId) {
         throw new Error('Cannot follow yourself');
     }
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS follows (
+            id SERIAL PRIMARY KEY,
+            follower_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            following_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(follower_id, following_id)
+        )
+    `);
     
     const query = `
         INSERT INTO follows (follower_id, following_id)
-        VALUES ($1, $2)
-        ON CONFLICT (follower_id, following_id) DO NOTHING
+        SELECT $1, $2
+        WHERE NOT EXISTS (
+            SELECT 1 FROM follows
+            WHERE follower_id = $1 AND following_id = $2
+        )
         RETURNING *
     `;
     const result = await pool.query(query, [followerId, followingId]);
