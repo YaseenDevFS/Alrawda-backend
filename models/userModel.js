@@ -122,13 +122,18 @@ export const createUser = async (name, email, hashedPassword, profile = {}) => {
     return result.rows[0];
 };
 
-export const getAllUsers = async () => {
+export const getAllUsers = async (requesterId = null) => {
     const query = `
-        SELECT id, name, email, avatar, created_at 
+        SELECT id, name, email, avatar, role, bio, location, created_at,
+               EXISTS (
+                   SELECT 1 FROM follows
+                   WHERE follower_id = $1 AND following_id = users.id
+               ) as is_following
         FROM users 
+        WHERE id <> $1
         ORDER BY created_at DESC
     `;
-    const result = await pool.query(query);
+    const result = await pool.query(query, [requesterId]);
     return result.rows;
 };
 
