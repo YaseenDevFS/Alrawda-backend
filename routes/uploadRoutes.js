@@ -3,13 +3,17 @@
 import express from 'express';
 import upload from '../middleware/upload.js';
 import {
+  getUploadSignature,
   uploadSingleFile,
   uploadMultipleFiles,
   deleteFile,
   getFileUrl,
 } from '../controllers/uploadController.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
+
+router.get('/upload/signature', authenticate, getUploadSignature);
 
 // ============================================
 // 1. رفع ملف واحد

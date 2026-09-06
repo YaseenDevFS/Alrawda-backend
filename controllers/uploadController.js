@@ -5,6 +5,26 @@ import upload, {
   deleteFromCloudinary, 
   getCloudinaryUrl 
 } from '../middleware/upload.js';
+import cloudinary from '../config/cloudinary.js';
+
+export const getUploadSignature = (req, res) => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = 'elrawda/posts';
+  const resourceType = req.query.resourceType === 'video' ? 'video' : 'image';
+  const signature = cloudinary.utils.api_sign_request(
+    { timestamp, folder },
+    process.env.CLOUDINARY_API_SECRET
+  );
+
+  res.json({
+    timestamp,
+    folder,
+    resourceType,
+    signature,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+  });
+};
 
 // ============================================
 // 1. رفع ملف واحد

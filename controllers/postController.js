@@ -71,7 +71,11 @@ export const createPost = async (req, res) => {
     console.log('📁 req.file:', req.file);
     console.log('📁 req.files:', req.files);
     
-    const { content, link, type, mediaType, videoWidth, videoHeight, videoDuration } = req.body;
+    const {
+      content, link, type, mediaType, videoWidth, videoHeight, videoDuration,
+      imagePublicId, imageUrl: uploadedImageUrl,
+      videoPublicId, videoUrl: uploadedVideoUrl,
+    } = req.body;
     
     if (!content) {
       return res.status(400).json({ 
@@ -85,6 +89,17 @@ export const createPost = async (req, res) => {
     let imageUrl = null;
     let videoUrl = null;
     let finalMediaType = mediaType || null;
+
+    if (imagePublicId) {
+      image = imagePublicId;
+      imageUrl = uploadedImageUrl || getImageUrl(image, { resource_type: 'image' });
+      finalMediaType = 'image';
+    }
+    if (videoPublicId) {
+      video = videoPublicId;
+      videoUrl = uploadedVideoUrl || getImageUrl(video, { resource_type: 'video' });
+      finalMediaType = 'video';
+    }
     
     // ✅ Check if it's a video upload
     if (req.file) {
@@ -240,20 +255,38 @@ export const getPosts = async (req, res) => {
     const posts = await postModel.getPosts(limit, offset, userId, type);
     
     const postsWithUrls = posts.map(post => {
-      const { image, video, ...postData } = post;
+      const mediaType = post.video ? 'video' : (post.image ? 'image' : null);
 
       return {
-        ...postData,
-        imageUrl: post.image ? getImageUrl(req, post.image) : null,
-        videoUrl: post.video ? getImageUrl(req, post.video) : null,
-        mediaType: post.video ? 'video' : (post.image ? 'image' : null),
+        id: post.id,
+        user_id: post.user_id,
+        content: post.content,
+        link: post.link,
+        type: post.type,
+        is_pinned: post.is_pinned,
+        created_at: post.created_at,
+        updated_at: post.updated_at,
+        name: post.name,
+        email: post.email,
+        avatar: post.avatar,
+        role: post.role,
+        likes_count: post.likes_count,
+        comments_count: post.comments_count,
+        is_liked: post.is_liked,
+        imageUrl: post.image && !post.video
+          ? getImageUrl(post.image, { resource_type: 'image' })
+          : null,
+        videoUrl: post.video
+          ? getImageUrl(post.video, { resource_type: 'video' })
+          : null,
+        mediaType,
         media: post.video ? {
-          uri: getImageUrl(req, post.video),
+          uri: getImageUrl(post.video, { resource_type: 'video' }),
           width: post.video_width || 1920,
           height: post.video_height || 1080,
           duration: post.video_duration || 0,
         } : (post.image ? {
-          uri: getImageUrl(req, post.image),
+          uri: getImageUrl(post.image, { resource_type: 'image' }),
           width: 800,
           height: 600,
         } : null),
