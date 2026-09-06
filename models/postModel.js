@@ -489,10 +489,12 @@ export const createCommunityTables = async () => {
         id SERIAL PRIMARY KEY,
         post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reaction_type VARCHAR(20) NOT NULL DEFAULT 'like',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(post_id, user_id)
       )
     `);
+    await pool.query("ALTER TABLE likes ADD COLUMN IF NOT EXISTS reaction_type VARCHAR(20) NOT NULL DEFAULT 'like'");
     
     console.log('✅ Community tables created or already exists');
   } catch (error) {

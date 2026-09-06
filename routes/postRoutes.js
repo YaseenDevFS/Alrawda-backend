@@ -42,5 +42,6 @@ router.put('/:id/pin', postController.togglePinPost);
 
 // ✅ LIKE route
 router.post('/:id/like', postController.toggleLike);
+router.post('/:id/reaction', postController.setReaction);
 
 export default router;
