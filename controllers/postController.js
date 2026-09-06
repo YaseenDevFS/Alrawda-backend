@@ -1,7 +1,7 @@
 // backend/controllers/postController.js
 import * as postModel from '../models/postModel.js';
 import * as likeModel from '../models/likeModel.js';
-import { deleteOldImage, getImageUrl } from '../middleware/upload.js';
+import { deleteOldImage, getImageUrl, uploadToCloudinary } from '../middleware/upload.js';
 import path from 'path';
 import fs from 'fs';
 
@@ -93,18 +93,23 @@ export const createPost = async (req, res) => {
       const isImage = mimetype.startsWith('image/');
       
       if (isVideo) {
-        // Save video
-        video = saveVideoFile(req.file, req.userId);
-        if (video) {
-          videoUrl = getImageUrl(req, video);
-        }
+        const uploadedVideo = await uploadToCloudinary(req.file, {
+          folder: 'elrawda/posts',
+          resource_type: 'video',
+        });
+        video = uploadedVideo.publicId;
+        videoUrl = uploadedVideo.url;
         finalMediaType = 'video';
-        console.log('🎬 Video saved:', video);
+        console.log('🎬 Video uploaded:', video);
       } else if (isImage) {
-        image = req.file.path;
-        imageUrl = getImageUrl(req, image);
+        const uploadedImage = await uploadToCloudinary(req.file, {
+          folder: 'elrawda/posts',
+          resource_type: 'image',
+        });
+        image = uploadedImage.publicId;
+        imageUrl = uploadedImage.url;
         finalMediaType = 'image';
-        console.log('🖼️ Image saved:', image);
+        console.log('🖼️ Image uploaded:', image);
       }
     }
     
@@ -275,16 +280,16 @@ export const getFeed = async (req, res) => {
     
     const postsWithUrls = posts.map(post => ({
       ...post,
-      imageUrl: post.image ? getImageUrl(req, post.image) : null,
-      videoUrl: post.video ? getImageUrl(req, post.video) : null,
+      imageUrl: post.image ? getImageUrl(post.image, { resource_type: 'image' }) : null,
+      videoUrl: post.video ? getImageUrl(post.video, { resource_type: 'video' }) : null,
       mediaType: post.video ? 'video' : (post.image ? 'image' : null),
       media: post.video ? {
-        uri: getImageUrl(req, post.video),
+          uri: getImageUrl(post.video, { resource_type: 'video' }),
         width: post.video_width || 1920,
         height: post.video_height || 1080,
         duration: post.video_duration || 0,
       } : (post.image ? {
-        uri: getImageUrl(req, post.image),
+          uri: getImageUrl(post.image, { resource_type: 'image' }),
         width: 800,
         height: 600,
       } : null),
@@ -312,16 +317,16 @@ export const getPost = async (req, res) => {
     
     const postWithUrls = {
       ...post,
-      imageUrl: post.image ? getImageUrl(req, post.image) : null,
-      videoUrl: post.video ? getImageUrl(req, post.video) : null,
+      imageUrl: post.image ? getImageUrl(post.image, { resource_type: 'image' }) : null,
+      videoUrl: post.video ? getImageUrl(post.video, { resource_type: 'video' }) : null,
       mediaType: post.video ? 'video' : (post.image ? 'image' : null),
       media: post.video ? {
-        uri: getImageUrl(req, post.video),
+        uri: getImageUrl(post.video, { resource_type: 'video' }),
         width: post.video_width || 1920,
         height: post.video_height || 1080,
         duration: post.video_duration || 0,
       } : (post.image ? {
-        uri: getImageUrl(req, post.image),
+        uri: getImageUrl(post.image, { resource_type: 'image' }),
         width: 800,
         height: 600,
       } : null),
