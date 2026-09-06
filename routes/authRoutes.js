@@ -184,7 +184,7 @@ router.put("/profile", async (req, res) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const { name, email, bio, location, website, role, level } = req.body;
+        const { name, email, bio, location, website, role, level, avatar } = req.body;
 
         // Build dynamic query
         const updates = [];
@@ -219,6 +219,10 @@ router.put("/profile", async (req, res) => {
             updates.push(`level = $${paramCount++}`);
             values.push(level);
         }
+        if (avatar !== undefined) {
+            updates.push(`avatar = $${paramCount++}`);
+            values.push(avatar);
+        }
 
         if (updates.length === 0) {
             return res.status(400).json({ message: "No fields to update" });
@@ -230,7 +234,7 @@ router.put("/profile", async (req, res) => {
             UPDATE users 
             SET ${updates.join(', ')}, updated_at = NOW()
             WHERE id = $${paramCount}
-            RETURNING id, name, email, bio, location, website, role, level, created_at, updated_at
+            RETURNING id, name, email, bio, location, website, role, level, avatar, created_at, updated_at
         `;
         
         const result = await pool.query(query, values);
