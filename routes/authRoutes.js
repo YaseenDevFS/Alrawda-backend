@@ -12,7 +12,7 @@ const router = express.Router();
 // @route   POST /api/auth/signup
 router.post('/signup', async (req, res) => {
     try {
-        const { name, email, password, bio, location, role, avatar } = req.body;
+        const { name, email, password, bio, location, role, avatar, accountType } = req.body;
         const normalizedEmail = email?.trim().toLowerCase();
 
         // Validate input
@@ -37,8 +37,11 @@ router.post('/signup', async (req, res) => {
             });
         }
 
+        // Normalize accountType — only 'student' or 'sheikh' are valid.
+        const normalizedAccountType = accountType === 'sheikh' ? 'sheikh' : 'student';
+
         const existingUser = await findUserByEmail(normalizedEmail);
-        
+
         if (existingUser) {
             return res.status(409).json({
                 code: "EMAIL_IN_USE",
@@ -47,12 +50,13 @@ router.post('/signup', async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         const user = await createUser(name.trim(), normalizedEmail, hashedPassword, {
             bio: bio?.trim() || null,
             location: location?.trim() || null,
             role: role?.trim() || 'Quran Learner',
             avatar: avatar?.trim() || null,
+            accountType: normalizedAccountType,
         });
 
         res.status(201).json({

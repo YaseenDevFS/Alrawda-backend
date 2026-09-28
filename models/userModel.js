@@ -18,11 +18,12 @@ export const createUsersTable = async () => {
             role VARCHAR(100) DEFAULT 'Quran Learner',
             level VARCHAR(50) DEFAULT 'Beginner',
             avatar VARCHAR(500),
+            account_type VARCHAR(20) DEFAULT 'student',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `;
-    
+
     try {
         await pool.query(query);
         console.log('✅ Users table created or already exists');
@@ -39,16 +40,16 @@ export const addAvatarColumn = async () => {
     try {
         // تحقق إذا كان العمود موجوداً
         const checkQuery = `
-            SELECT column_name 
-            FROM information_schema.columns 
+            SELECT column_name
+            FROM information_schema.columns
             WHERE table_name = 'users' AND column_name = 'avatar'
         `;
         const result = await pool.query(checkQuery);
-        
+
         if (result.rows.length === 0) {
             // أضف العمود
             const alterQuery = `
-                ALTER TABLE users 
+                ALTER TABLE users
                 ADD COLUMN avatar VARCHAR(500)
             `;
             await pool.query(alterQuery);
@@ -58,6 +59,35 @@ export const addAvatarColumn = async () => {
         }
     } catch (error) {
         console.error('❌ Error adding avatar column:', error.message);
+    }
+};
+
+// ============================
+//  ADD ACCOUNT_TYPE COLUMN
+//  (gate for Sheikhs vs Students — drives circle permissions)
+// ============================
+
+export const addAccountTypeColumn = async () => {
+    try {
+        const checkQuery = `
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'users' AND column_name = 'account_type'
+        `;
+        const result = await pool.query(checkQuery);
+
+        if (result.rows.length === 0) {
+            const alterQuery = `
+                ALTER TABLE users
+                ADD COLUMN account_type VARCHAR(20) DEFAULT 'student'
+            `;
+            await pool.query(alterQuery);
+            console.log('✅ Account_type column added successfully');
+        } else {
+            console.log('✅ Account_type column already exists');
+        }
+    } catch (error) {
+        console.error('❌ Error adding account_type column:', error.message);
     }
 };
 
@@ -96,8 +126,8 @@ export const findUserByEmail = async (email) => {
 
 export const findUserById = async (id) => {
     const query = `
-        SELECT id, name, email, bio, location, website, role, level, avatar, created_at 
-        FROM users 
+        SELECT id, name, email, bio, location, website, role, level, avatar, account_type, created_at
+        FROM users
         WHERE id = $1
     `;
     const result = await pool.query(query, [id]);
@@ -105,10 +135,11 @@ export const findUserById = async (id) => {
 };
 
 export const createUser = async (name, email, hashedPassword, profile = {}) => {
+    const accountType = profile.accountType === 'sheikh' ? 'sheikh' : 'student';
     const query = `
-        INSERT INTO users (name, email, password, bio, location, role, avatar)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, name, email, bio, location, role, avatar, created_at
+        INSERT INTO users (name, email, password, bio, location, role, avatar, account_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, name, email, bio, location, role, avatar, account_type, created_at
     `;
     const result = await pool.query(query, [
         name,
@@ -118,6 +149,7 @@ export const createUser = async (name, email, hashedPassword, profile = {}) => {
         profile.location || null,
         profile.role || 'Quran Learner',
         profile.avatar || null,
+        accountType,
     ]);
     return result.rows[0];
 };
@@ -141,24 +173,24 @@ export const updateUser = async (id, updates) => {
     const fields = [];
     const values = [];
     let paramCount = 1;
-    
-    const allowedFields = ['name', 'email', 'bio', 'location', 'website', 'role', 'level', 'avatar'];
-    
+
+    const allowedFields = ['name', 'email', 'bio', 'location', 'website', 'role', 'level', 'avatar', 'account_type'];
+
     for (const field of allowedFields) {
         if (updates[field] !== undefined) {
             fields.push(`${field} = $${paramCount++}`);
             values.push(updates[field]);
         }
     }
-    
+
     if (fields.length === 0) return null;
-    
+
     values.push(id);
     const query = `
-        UPDATE users 
+        UPDATE users
         SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
         WHERE id = $${paramCount}
-        RETURNING id, name, email, bio, location, website, role, level, avatar, created_at, updated_at
+        RETURNING id, name, email, bio, location, website, role, level, avatar, account_type, created_at, updated_at
     `;
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -174,7 +206,7 @@ export const getUserProfile = async (userId, requesterId = null) => {
     // following `userId`?) so the frontend doesn't have to fetch the
     // entire followers list just to answer that one yes/no question.
     const query = `
-        SELECT u.id, u.name, u.email, u.bio, u.location, u.website, u.role, u.level, u.avatar, u.created_at,
+        SELECT u.id, u.name, u.email, u.bio, u.location, u.website, u.role, u.level, u.avatar, u.account_type, u.created_at,
                COUNT(DISTINCT p.id) as posts_count,
                COUNT(DISTINCT f1.follower_id) as followers_count,
                COUNT(DISTINCT f2.following_id) as following_count,
@@ -270,24 +302,24 @@ export const updateUserProfile = async (userId, data) => {
     const fields = [];
     const values = [];
     let paramCount = 1;
-    
-    const allowedFields = ['name', 'email', 'bio', 'location', 'website', 'role', 'level', 'avatar'];
-    
+
+    const allowedFields = ['name', 'email', 'bio', 'location', 'website', 'role', 'level', 'avatar', 'account_type'];
+
     for (const field of allowedFields) {
         if (data[field] !== undefined) {
             fields.push(`${field} = $${paramCount++}`);
             values.push(data[field]);
         }
     }
-    
+
     if (fields.length === 0) return null;
-    
+
     values.push(userId);
     const query = `
-        UPDATE users 
+        UPDATE users
         SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
         WHERE id = $${paramCount}
-        RETURNING id, name, email, bio, location, website, role, level, avatar, created_at, updated_at
+        RETURNING id, name, email, bio, location, website, role, level, avatar, account_type, created_at, updated_at
     `;
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -301,6 +333,7 @@ export const initializeDatabase = async () => {
     try {
         await createUsersTable();
         await addAvatarColumn();
+        await addAccountTypeColumn();
         await createFollowsTable();
         console.log('✅ Database initialized successfully');
     } catch (error) {
