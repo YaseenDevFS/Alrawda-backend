@@ -16,11 +16,13 @@ import userRoutes from "./routes/userRoutes.js";
 import storyRoutes from "./routes/storyRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js"; // ✅ إضافة مسارات الرفع
 import circleRoutes from "./routes/circleRoutes.js"; // ✅ Memorization Circles
+import liveAudioRoutes from "./routes/liveAudioRoutes.js"; // ✅ Live Audio Sessions
 
 // Import Models
 import { createUsersTable, createFollowsTable } from "./models/userModel.js";
 import { createCommunityTables, createStoriesTable } from "./models/postModel.js";
 import { createCirclesTables } from "./models/circleModel.js"; // ✅ Memorization Circles
+import { createLiveAudioTables } from "./models/liveAudioModel.js"; // ✅ Live Audio Sessions
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,6 +89,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/stories', storyRoutes);
 app.use('/api', uploadRoutes); // ✅ إضافة مسارات رفع الملفات
 app.use('/api/circles', circleRoutes); // ✅ Memorization Circles routes
+app.use('/api', liveAudioRoutes); // ✅ Live Audio Sessions routes (defines /circles/:id/live + /live/:id/* paths)
 
 // ============================
 //  Health Check
@@ -301,8 +304,11 @@ const initializeDatabase = async () => {
     // ✅ Memorization Circles
     await createCirclesTables();
 
+    // ✅ Live Audio Sessions
+    await createLiveAudioTables();
+
     console.log('✅ All tables initialized successfully!');
-    console.log('📊 Tables: users, follows, posts, comments, likes, saved_posts, stories, story_views, circles, circle_members, circle_progress');
+    console.log('📊 Tables: users, follows, posts, comments, likes, saved_posts, stories, story_views, circles, circle_members, circle_progress, live_sessions, live_session_participants, live_session_notes, live_session_events');
   } catch (error) {
     console.error('❌ Database initialization error:', error.message);
     throw error;

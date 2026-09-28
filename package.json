@@ -7,6 +7,7 @@
   "type": "module",
   "dependencies": {
     "@prisma/client": "^7.8.0",
+    "agora-access-token": "^2.0.4",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
