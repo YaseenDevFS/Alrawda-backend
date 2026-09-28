@@ -263,7 +263,19 @@ export const findCircleById = async (id, requesterId = null) => {
       (SELECT COUNT(*) FROM circle_members WHERE circle_id = c.id AND status = 'pending') AS pending_count,
       CASE WHEN $2::int IS NULL THEN NULL ELSE
           (SELECT status FROM circle_members WHERE circle_id = c.id AND student_id = $2 LIMIT 1)
-        END AS member_status
+        END AS member_status,
+      CASE WHEN $2::int IS NULL THEN FALSE ELSE
+          EXISTS (
+            SELECT 1 FROM circle_members
+            WHERE circle_id = c.id AND student_id = $2 AND status = 'approved'
+          )
+        END AS is_member,
+      CASE WHEN $2::int IS NULL THEN FALSE ELSE
+          EXISTS (
+            SELECT 1 FROM circle_members
+            WHERE circle_id = c.id AND student_id = $2 AND status = 'pending'
+          )
+        END AS is_pending
     FROM circles c
     JOIN users u ON c.teacher_id = u.id
     WHERE c.id = $1
@@ -324,7 +336,19 @@ export const listCircles = async ({
       (SELECT COUNT(*) FROM circle_members WHERE circle_id = c.id AND status = 'approved') AS members_count,
       CASE WHEN $${requesterParamIdx}::int IS NULL THEN NULL ELSE
           (SELECT status FROM circle_members WHERE circle_id = c.id AND student_id = $${requesterParamIdx} LIMIT 1)
-        END AS member_status
+        END AS member_status,
+      CASE WHEN $${requesterParamIdx}::int IS NULL THEN FALSE ELSE
+          EXISTS (
+            SELECT 1 FROM circle_members
+            WHERE circle_id = c.id AND student_id = $${requesterParamIdx} AND status = 'approved'
+          )
+        END AS is_member,
+      CASE WHEN $${requesterParamIdx}::int IS NULL THEN FALSE ELSE
+          EXISTS (
+            SELECT 1 FROM circle_members
+            WHERE circle_id = c.id AND student_id = $${requesterParamIdx} AND status = 'pending'
+          )
+        END AS is_pending
     FROM circles c
     JOIN users u ON c.teacher_id = u.id
     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}

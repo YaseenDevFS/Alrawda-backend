@@ -121,7 +121,9 @@ export const createFollowsTable = async () => {
 export const findUserByEmail = async (email) => {
     const query = 'SELECT * FROM users WHERE email = $1';
     const result = await pool.query(query, [email]);
-    return result.rows[0];
+    const row = result.rows[0];
+    if (!row) return null;
+    return { ...row, accountType: row.account_type || 'student' };
 };
 
 export const findUserById = async (id) => {
@@ -131,7 +133,13 @@ export const findUserById = async (id) => {
         WHERE id = $1
     `;
     const result = await pool.query(query, [id]);
-    return result.rows[0];
+    const row = result.rows[0];
+    if (!row) return null;
+    // Map snake_case → camelCase for consistency with the rest of the API.
+    return {
+      ...row,
+      accountType: row.account_type || 'student',
+    };
 };
 
 export const createUser = async (name, email, hashedPassword, profile = {}) => {
