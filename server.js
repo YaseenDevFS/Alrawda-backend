@@ -73,6 +73,22 @@ console.log(`   API Key: ${process.env.CLOUDINARY_API_KEY ? '✅ Configured' : '
 console.log(`   API Secret: ${process.env.CLOUDINARY_API_SECRET ? '✅ Configured' : '❌ Missing'}`);
 
 // ============================
+//  ✅ Agora (Live Audio) Status Check
+// ============================
+const AGORA_APP_ID_SET = !!process.env.AGORA_APP_ID;
+const AGORA_CERT_SET = !!process.env.AGORA_APP_CERTIFICATE;
+console.log('🎙️  Agora Status:');
+console.log(`   AGORA_APP_ID:          ${AGORA_APP_ID_SET ? '✅ Configured' : '❌ Missing'}`);
+console.log(`   AGORA_APP_CERTIFICATE: ${AGORA_CERT_SET ? '✅ Configured' : '⚠️  Missing (Agora will reject tokens unless the App ID has primary-cert disabled)'}`);
+if (AGORA_APP_ID_SET) {
+  console.log(`   App ID preview: ${String(process.env.AGORA_APP_ID).slice(0, 6)}…${String(process.env.AGORA_APP_ID).slice(-4)}`);
+}
+if (!AGORA_APP_ID_SET) {
+  console.log('   ℹ️  Live audio endpoints (POST /api/live/:id/join, /start, /end) will return AGORA_MISCONFIGURED until AGORA_APP_ID is set.');
+  console.log('   ℹ️  Add AGORA_APP_ID (and ideally AGORA_APP_CERTIFICATE) to your Vercel project env vars, then redeploy.');
+}
+
+// ============================
 //  ✅ Debug Middleware - Log all requests
 // ============================
 app.use((req, res, next) => {
@@ -96,14 +112,22 @@ app.use('/api', liveAudioRoutes); // ✅ Live Audio Sessions routes (defines /ci
 //  Health Check
 // ============================
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Server is running',
     timestamp: new Date().toISOString(),
     cloudinary: {
       configured: !!process.env.CLOUDINARY_CLOUD_NAME,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'Not configured',
     },
+    agora: {
+      appIdConfigured: !!process.env.AGORA_APP_ID,
+      certificateConfigured: !!process.env.AGORA_APP_CERTIFICATE,
+      appIdPreview: process.env.AGORA_APP_ID
+        ? `${String(process.env.AGORA_APP_ID).slice(0, 6)}…${String(process.env.AGORA_APP_ID).slice(-4)}`
+        : null,
+    },
+    liveAudioReady: !!process.env.AGORA_APP_ID,
     upload: {
       method: 'Cloudinary',
       tempFolder: '/temp/',

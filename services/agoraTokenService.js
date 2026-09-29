@@ -8,6 +8,13 @@
 //   • Centralizes env reads + sensible defaults
 //   • Single place to switch token-builder versions if Agora deprecates one
 //   • Keeps the role string mapping in one well-tested place
+//
+// Demo mode:
+//   When AGORA_APP_ID is not configured, every token request falls back to a
+//   mock object with `isDemo: true`. The controller forwards that flag so the
+//   frontend can render the audio room UI without actually connecting to Agora.
+//   This is useful for development inside Expo Go (which can't load the
+//   native Agora module) and for staging demos before real credentials exist.
 
 import pkg from 'agora-access-token';
 const { RtcTokenBuilder, RtcRole } = pkg;
@@ -32,6 +39,26 @@ const ROLE_MAP = {
 
 const DEFAULT_TOKEN_EXPIRY_SECONDS = 3600;
 
+const isAgoraConfigured = () => Boolean(process.env.AGORA_APP_ID);
+
+/**
+ * Build a mock token object. The token itself is never sent to Agora — the
+ * frontend detects `isDemo: true` and skips the real join call entirely.
+ * Shape mirrors the real return value so the controller can stay simple.
+ */
+const buildMockToken = ({ channelName, userId, role, expireSeconds }) => {
+  const uid = hashToUid(userId);
+  const expiresAt = Math.floor(Date.now() / 1000) + expireSeconds;
+  return {
+    token: `demo-${channelName}-${uid}-${Date.now()}`,
+    uid,
+    expiresAt,
+    channelName,
+    role,
+    isDemo: true,
+  };
+};
+
 /**
  * Build an Agora RTC token for a single channel + UID.
  *
@@ -40,7 +67,7 @@ const DEFAULT_TOKEN_EXPIRY_SECONDS = 3600;
  * @param {string|number} opts.userId  — any stable string; we'll hash it to a 32-bit int
  * @param {'publisher'|'subscriber'} opts.role
  * @param {number} [opts.expireSeconds]
- * @returns {{ token: string, uid: number, expiresAt: number }}
+ * @returns {{ token: string, uid: number, expiresAt: number, isDemo?: true }}
  */
 export const generateRtcToken = ({
   channelName,
@@ -48,12 +75,16 @@ export const generateRtcToken = ({
   role = 'subscriber',
   expireSeconds = DEFAULT_TOKEN_EXPIRY_SECONDS,
 }) => {
+  // Demo-mode fallback: never throw at the user just because the deployment
+  // doesn't have credentials yet. The frontend uses `isDemo` to render a
+  // banner and skip the actual Agora join.
+  if (!isAgoraConfigured()) {
+    return buildMockToken({ channelName, userId, role, expireSeconds });
+  }
+
   const appId = process.env.AGORA_APP_ID;
   const appCertificate = process.env.AGORA_APP_CERTIFICATE;
 
-  if (!appId) {
-    throw new Error('AGORA_APP_ID is not configured on the server.');
-  }
   // In Agora's "primary certificate disabled" mode, the certificate is empty.
   // We tolerate that, but warn loudly so it's caught in dev.
   if (!appCertificate) {
@@ -73,13 +104,13 @@ export const generateRtcToken = ({
     expireAt
   );
 
-  return { token, uid, expiresAt: expireAt };
+  return { token, uid, expiresAt: expireAt, isDemo: false };
 };
 
 /**
- * Convenience helper: same as generateRtcToken but throws a friendlier
- * error if Agora isn't configured. Use this in routes so the API client
- * gets a clear message instead of a stack trace.
+ * Convenience helper: same as generateRtcToken but never throws when Agora is
+ * missing — it returns a mock token instead. Other unexpected errors still
+ * bubble up wrapped with a friendly message.
  */
 export const safeGenerateRtcToken = (opts) => {
   try {
@@ -97,8 +128,15 @@ export const safeGenerateRtcToken = (opts) => {
  */
 export const uidForUser = (userId) => hashToUid(userId);
 
+/**
+ * Cheap read-only check used by the controller and the health endpoint
+ * to decide whether to advertise demo mode to clients.
+ */
+export const isAgoraReady = () => isAgoraConfigured();
+
 export default {
   generateRtcToken,
   safeGenerateRtcToken,
   uidForUser,
+  isAgoraReady,
 };

@@ -8,7 +8,7 @@
 // the rest of the API.
 
 import * as liveAudioModel from '../models/liveAudioModel.js';
-import { safeGenerateRtcToken, uidForUser } from '../services/agoraTokenService.js';
+import { safeGenerateRtcToken, uidForUser, isAgoraReady } from '../services/agoraTokenService.js';
 
 const ok = (res, data, status = 200) => res.status(status).json({ success: true, ...data });
 const fail = (res, message, status = 400, code = `HTTP_${status}`) =>
@@ -152,6 +152,8 @@ export const startSession = async (req, res) => {
       expiresAt: tokenData.expiresAt,
       channelName: session.channelName,
       role: 'sheikh',
+      isDemo: !!tokenData.isDemo,
+      liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
     console.error('❌ startSession error:', error);
@@ -196,6 +198,8 @@ export const joinSession = async (req, res) => {
       channelName: session.channelName,
       role,
       sessionId: id,
+      isDemo: !!tokenData.isDemo,
+      liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
     console.error('❌ joinSession error:', error);
@@ -235,6 +239,8 @@ export const refreshToken = async (req, res) => {
       expiresAt: tokenData.expiresAt,
       channelName: session.channelName,
       role,
+      isDemo: !!tokenData.isDemo,
+      liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
     console.error('❌ refreshToken error:', error);
@@ -388,6 +394,8 @@ export const acceptSpeaker = async (req, res) => {
       token: tokenData.token,
       uid: tokenData.uid,
       expiresAt: tokenData.expiresAt,
+      isDemo: !!tokenData.isDemo,
+      liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
     console.error('❌ acceptSpeaker error:', error);
