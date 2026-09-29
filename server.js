@@ -324,11 +324,33 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await initializeDatabase();
-    
+
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
       console.log(`📡 API base: http://localhost:${PORT}/api`);
+
+      // Print LAN IPs so the React Native app can connect from a
+      // physical device on the same network.
+      try {
+        const { networkInterfaces } = await import('os');
+        const ifaces = networkInterfaces();
+        const ips = [];
+        Object.values(ifaces).forEach((iface) => {
+          (iface || []).forEach((entry) => {
+            if (entry.family === 'IPv4' && !entry.internal) {
+              ips.push(entry.address);
+            }
+          });
+        });
+        if (ips.length) {
+          console.log('\n📶 Available LAN IPs (use one in EXPO_PUBLIC_API_URL):');
+          ips.forEach((ip) => console.log(`   http://${ip}:${PORT}`));
+        }
+      } catch (e) {
+        // best-effort — not critical
+      }
+
       console.log(`\n☁️ Files are stored on Cloudinary`);
       console.log(`📁 Temporary uploads: /temp/ (deleted after upload)`);
       console.log(`\n📋 Upload endpoints:`);
