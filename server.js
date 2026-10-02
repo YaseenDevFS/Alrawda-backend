@@ -18,12 +18,14 @@ import storyRoutes from "./routes/storyRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js"; // ✅ إضافة مسارات الرفع
 import circleRoutes from "./routes/circleRoutes.js"; // ✅ Memorization Circles
 import liveAudioRoutes from "./routes/liveAudioRoutes.js"; // ✅ Live Audio Sessions
+import gamificationRoutes from "./routes/gamificationRoutes.js"; // ✅ Gamification (XP / Levels / Badges / Privacy)
 
 // Import Models
 import { createUsersTable, createFollowsTable } from "./models/userModel.js";
 import { createCommunityTables, createStoriesTable } from "./models/postModel.js";
 import { createCirclesTables } from "./models/circleModel.js"; // ✅ Memorization Circles
 import { createLiveAudioTables } from "./models/liveAudioModel.js"; // ✅ Live Audio Sessions
+import { ensureGamificationTable } from "./models/gamificationModel.js"; // ✅ Gamification public table
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -107,6 +109,7 @@ app.use('/api/stories', storyRoutes);
 app.use('/api', uploadRoutes); // ✅ إضافة مسارات رفع الملفات
 app.use('/api/circles', circleRoutes); // ✅ Memorization Circles routes
 app.use('/api', liveAudioRoutes); // ✅ Live Audio Sessions routes (defines /circles/:id/live + /live/:id/* paths)
+app.use('/api/gamification', gamificationRoutes); // ✅ Gamification sync + public profile gamification
 
 // ============================
 //  Health Check
@@ -332,8 +335,11 @@ const initializeDatabase = async () => {
     // ✅ Live Audio Sessions
     await createLiveAudioTables();
 
+    // ✅ Gamification (public data + privacy)
+    await ensureGamificationTable();
+
     console.log('✅ All tables initialized successfully!');
-    console.log('📊 Tables: users, follows, posts, comments, likes, saved_posts, stories, story_views, circles, circle_members, circle_progress, live_sessions, live_session_participants, live_session_notes, live_session_events');
+    console.log('📊 Tables: users, follows, posts, comments, likes, saved_posts, stories, story_views, circles, circle_members, circle_progress, live_sessions, live_session_participants, live_session_notes, live_session_events, user_gamification');
   } catch (error) {
     console.error('❌ Database initialization error:', error.message);
     throw error;
