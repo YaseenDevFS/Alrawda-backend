@@ -152,7 +152,6 @@ export const startSession = async (req, res) => {
       expiresAt: tokenData.expiresAt,
       channelName: session.channelName,
       role: 'sheikh',
-      isDemo: !!tokenData.isDemo,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
@@ -198,7 +197,6 @@ export const joinSession = async (req, res) => {
       channelName: session.channelName,
       role,
       sessionId: id,
-      isDemo: !!tokenData.isDemo,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
@@ -239,7 +237,6 @@ export const refreshToken = async (req, res) => {
       expiresAt: tokenData.expiresAt,
       channelName: session.channelName,
       role,
-      isDemo: !!tokenData.isDemo,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
@@ -394,7 +391,6 @@ export const acceptSpeaker = async (req, res) => {
       token: tokenData.token,
       uid: tokenData.uid,
       expiresAt: tokenData.expiresAt,
-      isDemo: !!tokenData.isDemo,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
