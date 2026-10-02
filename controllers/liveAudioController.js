@@ -152,6 +152,7 @@ export const startSession = async (req, res) => {
       expiresAt: tokenData.expiresAt,
       channelName: session.channelName,
       role: 'sheikh',
+      appId: process.env.AGORA_APP_ID || null,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
@@ -197,6 +198,7 @@ export const joinSession = async (req, res) => {
       channelName: session.channelName,
       role,
       sessionId: id,
+      appId: process.env.AGORA_APP_ID || null,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
@@ -237,6 +239,7 @@ export const refreshToken = async (req, res) => {
       expiresAt: tokenData.expiresAt,
       channelName: session.channelName,
       role,
+      appId: process.env.AGORA_APP_ID || null,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
@@ -391,6 +394,7 @@ export const acceptSpeaker = async (req, res) => {
       token: tokenData.token,
       uid: tokenData.uid,
       expiresAt: tokenData.expiresAt,
+      appId: process.env.AGORA_APP_ID || null,
       liveAudioReady: isAgoraReady(),
     });
   } catch (error) {
