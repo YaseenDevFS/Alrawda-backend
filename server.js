@@ -26,6 +26,7 @@ import { createCommunityTables, createStoriesTable } from "./models/postModel.js
 import { createCirclesTables } from "./models/circleModel.js"; // ✅ Memorization Circles
 import { createLiveAudioTables } from "./models/liveAudioModel.js"; // ✅ Live Audio Sessions
 import { ensureGamificationTable } from "./models/gamificationModel.js"; // ✅ Gamification public table
+import { ensureGamificationSchema } from "./models/gamificationStateModel.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -337,9 +338,10 @@ const initializeDatabase = async () => {
 
     // ✅ Gamification (public data + privacy)
     await ensureGamificationTable();
+    await ensureGamificationSchema();
 
     console.log('✅ All tables initialized successfully!');
-    console.log('📊 Tables: users, follows, posts, comments, likes, saved_posts, stories, story_views, circles, circle_members, circle_progress, live_sessions, live_session_participants, live_session_notes, live_session_events, user_gamification');
+    console.log('📊 Tables: users, follows, posts, comments, likes, saved_posts, stories, story_views, circles, circle_members, circle_progress, live_sessions, live_session_participants, live_session_notes, live_session_events, user_gamification, gamification_wallet, gamification_activities, gamification_wallet_transactions, gamification_missions, gamification_achievements, gamification_inventory, gamification_purchases, gamification_equipped, gamification_daily_rewards');
   } catch (error) {
     console.error('❌ Database initialization error:', error.message);
     throw error;

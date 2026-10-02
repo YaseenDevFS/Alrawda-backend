@@ -1,61 +1,142 @@
-// backend/controllers/gamificationController.js
-//
-// HTTP handlers for the gamification sync + read paths.
-
 import * as gamificationModel from '../models/gamificationModel.js';
+import * as gamificationEngine from '../services/gamificationEngine.js';
 
-export const syncGamification = async (req, res) => {
+const sendError = (res, error) => {
+  const status = Number(error?.status) || 500;
+  if (status >= 500) console.error('gamification request failed:', error);
+  return res.status(status).json({
+    success: false,
+    code: error?.code || 'GAMIFICATION_REQUEST_FAILED',
+    message: status >= 500 ? 'Gamification service is unavailable.' : error.message,
+  });
+};
+
+export const rejectLegacySync = (_req, res) => res.status(410).json({
+  success: false,
+  code: 'AUTHORITATIVE_API_REQUIRED',
+  message: 'Client-authoritative gamification sync has been removed.',
+});
+
+export const getMyGamification = async (req, res) => {
   try {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    res.json({ success: true, gamification: await gamificationEngine.getGamificationSnapshot(req.userId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const recordActivity = async (req, res) => {
+  try {
+    const event = req.body || {};
+    res.json(await gamificationEngine.recordActivity(req.userId, {
+      type: event.type,
+      activityId: event.activityId,
+      metadata: event.metadata,
+    }));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const claimDailyReward = async (req, res) => {
+  try {
+    res.json(await gamificationEngine.claimDailyReward(req.userId));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const startRadioListening = async (req, res) => {
+  try {
+    res.json(await gamificationEngine.startRadioListening(req.userId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const startQuranAudioSession = async (req, res) => {
+  try {
+    res.json(await gamificationEngine.startQuranAudioSession(req.userId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const startQuranPageSession = async (req, res) => {
+  try {
+    res.json(await gamificationEngine.startQuranPageSession(req.userId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const getShopCatalog = (_req, res) => {
+  res.json({ success: true, products: gamificationEngine.getCatalog() });
+};
+
+export const purchaseShopItem = async (req, res) => {
+  try {
+    res.json(await gamificationEngine.purchaseShopItem(req.userId, req.body?.itemId, req.body?.idempotencyKey));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const equipItem = async (req, res) => {
+  try {
+    if (req.body?.equippedItems && typeof req.body.equippedItems === 'object') {
+      res.json(await gamificationEngine.equipInventoryItems(req.userId, req.body.equippedItems));
+      return;
     }
-    const payload = req.body || {};
-    const saved = await gamificationModel.upsertGamification(userId, payload);
-    res.json({ success: true, gamification: saved });
-  } catch (e) {
-    console.error('syncGamification error:', e);
-    res.status(500).json({ success: false, message: e.message });
+    res.json(await gamificationEngine.equipInventoryItem(req.userId, req.body?.slot, req.body?.itemId ?? null));
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const getInventory = async (req, res) => {
+  try {
+    res.json({ success: true, inventory: await gamificationEngine.getInventory(req.userId) });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const updatePublicPreferences = async (req, res) => {
+  try {
+    res.json(await gamificationEngine.updatePublicPreferences(req.userId, req.body || {}));
+  } catch (error) {
+    sendError(res, error);
   }
 };
 
 export const getViewerGamification = async (req, res) => {
   try {
-    const viewedUserId = parseInt(req.params.userId, 10);
-    const viewerUserId = req.userId;
-    if (!viewedUserId || Number.isNaN(viewedUserId)) {
-      return res.status(400).json({ success: false, message: 'Invalid userId' });
+    const viewedUserId = Number.parseInt(req.params.userId, 10);
+    if (!Number.isInteger(viewedUserId) || viewedUserId <= 0) {
+      return res.status(400).json({ success: false, code: 'INVALID_USER_ID', message: 'Invalid userId' });
     }
-    if (!viewerUserId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-    const data = await gamificationModel.getGamificationForViewer(
-      viewedUserId,
-      viewerUserId,
-    );
-    res.json({ success: true, gamification: data });
-  } catch (e) {
-    console.error('getViewerGamification error:', e);
-    res.status(500).json({ success: false, message: e.message });
-  }
-};
-
-export const getMyGamification = async (req, res) => {
-  try {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-    const data = await gamificationModel.getOwnGamification(userId);
-    res.json({ success: true, gamification: data });
-  } catch (e) {
-    console.error('getMyGamification error:', e);
-    res.status(500).json({ success: false, message: e.message });
+    res.json({
+      success: true,
+      gamification: await gamificationModel.getGamificationForViewer(viewedUserId, req.userId),
+    });
+  } catch (error) {
+    sendError(res, error);
   }
 };
 
 export default {
-  syncGamification,
-  getViewerGamification,
+  rejectLegacySync,
   getMyGamification,
+  recordActivity,
+  claimDailyReward,
+  startRadioListening,
+  startQuranAudioSession,
+  startQuranPageSession,
+  getShopCatalog,
+  purchaseShopItem,
+  equipItem,
+  getInventory,
+  updatePublicPreferences,
+  getViewerGamification,
 };

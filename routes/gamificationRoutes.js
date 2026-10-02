@@ -1,6 +1,6 @@
 // backend/routes/gamificationRoutes.js
 //
-// Routes for gamification sync + public profile gamification read.
+// Authenticated, server-authoritative gamification endpoints.
 
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
@@ -10,16 +10,23 @@ const router = express.Router();
 
 router.use(authenticate);
 
-// Push the local gamification state to the server. Called by the
-// frontend whenever XP / coins / equipped / featured / privacy changes
-// (debounced inside the frontend sync service).
-router.post('/sync', controller.syncGamification);
+// Never accept client snapshots for XP, level or coins.
+router.post('/sync', controller.rejectLegacySync);
+
+router.get('/me', controller.getMyGamification);
+router.get('/catalog', controller.getShopCatalog);
+router.get('/inventory', controller.getInventory);
+router.post('/activity', controller.recordActivity);
+router.post('/daily-reward/claim', controller.claimDailyReward);
+router.post('/radio/start', controller.startRadioListening);
+router.post('/quran-audio/start', controller.startQuranAudioSession);
+router.post('/quran-page/start', controller.startQuranPageSession);
+router.post('/shop/purchase', controller.purchaseShopItem);
+router.post('/inventory/equip', controller.equipItem);
+router.put('/profile/preferences', controller.updatePublicPreferences);
 
 // Fetch another user's public gamification data. Returns only the
 // fields the *viewed* user has marked as visible.
 router.get('/users/:userId', controller.getViewerGamification);
-
-// Fetch the calling user's own row (used for re-syncing on first load).
-router.get('/me', controller.getMyGamification);
 
 export default router;
