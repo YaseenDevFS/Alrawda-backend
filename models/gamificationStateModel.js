@@ -1,6 +1,6 @@
 import pool from '../db/db.js';
 
-export const GAMIFICATION_SCHEMA_VERSION = 2;
+export const GAMIFICATION_SCHEMA_VERSION = 3;
 
 const CREATE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS gamification_schema_version (
@@ -144,6 +144,35 @@ const CREATE_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_gamification_transactions_user ON gamification_wallet_transactions (user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_gamification_purchases_user ON gamification_purchases (user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_gamification_missions_user ON gamification_missions (user_id, end_date)`,
+
+  // ─── Shop products table (v3) ────────────────────────────────
+  // Authoritative shop catalog. Frontend never defines products;
+  // it only renders what the backend returns from here.
+  `CREATE TABLE IF NOT EXISTS shop_products (
+    id VARCHAR(96) PRIMARY KEY,
+    name VARCHAR(160) NOT NULL,
+    description TEXT,
+    category VARCHAR(32) NOT NULL CHECK (category IN ('FRAME','BACKGROUND','THEME','PROFILE_THEME','AVATAR','BADGE','SPECIAL')),
+    rarity VARCHAR(16) NOT NULL CHECK (rarity IN ('COMMON','UNCOMMON','RARE','EPIC','LEGENDARY','MYTHIC','SPECIAL')),
+    price INTEGER NOT NULL CHECK (price >= 0),
+    available BOOLEAN NOT NULL DEFAULT TRUE,
+    featured BOOLEAN NOT NULL DEFAULT FALSE,
+    limited BOOLEAN NOT NULL DEFAULT FALSE,
+    is_new BOOLEAN NOT NULL DEFAULT FALSE,
+    repeatable BOOLEAN NOT NULL DEFAULT FALSE,
+    theme VARCHAR(64),
+    collection_label VARCHAR(160),
+    design_key VARCHAR(96) NOT NULL,
+    asset_key VARCHAR(160),
+    configuration JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_shop_products_category ON shop_products (category)`,
+  `CREATE INDEX IF NOT EXISTS idx_shop_products_rarity ON shop_products (rarity)`,
+  `CREATE INDEX IF NOT EXISTS idx_shop_products_theme ON shop_products (theme)`,
+  `CREATE INDEX IF NOT EXISTS idx_shop_products_design_key ON shop_products (design_key)`,
+  `CREATE INDEX IF NOT EXISTS idx_shop_products_featured ON shop_products (featured) WHERE featured = TRUE`,
 ];
 
 const RESET_STATEMENTS = [

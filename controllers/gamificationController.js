@@ -70,8 +70,13 @@ export const startQuranPageSession = async (req, res) => {
   }
 };
 
-export const getShopCatalog = (_req, res) => {
-  res.json({ success: true, products: gamificationEngine.getCatalog() });
+export const getShopCatalog = async (_req, res) => {
+  try {
+    const products = await gamificationEngine.getCatalog();
+    res.json({ success: true, products });
+  } catch (error) {
+    sendError(res, error);
+  }
 };
 
 export const purchaseShopItem = async (req, res) => {

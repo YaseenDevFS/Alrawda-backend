@@ -61,6 +61,9 @@ export const getPosts = async (limit = 20, offset = 0, userId = null, type = nul
       u.email,
       u.avatar,
       u.role,
+      ug.name_effect AS equipped_name_effect,
+      ug.equipped_frame AS equipped_frame,
+      ug.equipped_badge AS equipped_badge,
       COALESCE(l.likes_count, 0) as likes_count,
       COALESCE(c.comments_count, 0) as comments_count
   `;
@@ -79,6 +82,7 @@ export const getPosts = async (limit = 20, offset = 0, userId = null, type = nul
   query += `
     FROM posts p
     JOIN users u ON p.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     LEFT JOIN (
       SELECT post_id, COUNT(*) as likes_count
       FROM likes
@@ -147,6 +151,9 @@ export const getPostById = async (postId, userId = null) => {
       u.email,
       u.avatar,
       u.role,
+      ug.name_effect AS equipped_name_effect,
+      ug.equipped_frame AS equipped_frame,
+      ug.equipped_badge AS equipped_badge,
       COALESCE(l.likes_count, 0) as likes_count,
       COALESCE(c.comments_count, 0) as comments_count
   `;
@@ -164,6 +171,7 @@ export const getPostById = async (postId, userId = null) => {
   query += `
     FROM posts p
     JOIN users u ON p.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     LEFT JOIN (
       SELECT post_id, COUNT(*) as likes_count
       FROM likes
@@ -217,11 +225,15 @@ export const getPostsByUser = async (userId, limit = 20, offset = 0) => {
       u.email,
       u.avatar,
       u.role,
+      ug.name_effect AS equipped_name_effect,
+      ug.equipped_frame AS equipped_frame,
+      ug.equipped_badge AS equipped_badge,
       COALESCE(l.likes_count, 0) as likes_count,
       COALESCE(c.comments_count, 0) as comments_count,
       (SELECT COUNT(*) > 0 FROM likes WHERE post_id = p.id AND user_id = $1) as is_liked
     FROM posts p
     JOIN users u ON p.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     LEFT JOIN (
       SELECT post_id, COUNT(*) as likes_count
       FROM likes
@@ -272,11 +284,15 @@ export const getFeedPosts = async (userId, limit = 20, offset = 0) => {
       u.email,
       u.avatar,
       u.role,
+      ug.name_effect AS equipped_name_effect,
+      ug.equipped_frame AS equipped_frame,
+      ug.equipped_badge AS equipped_badge,
       COALESCE(l.likes_count, 0) as likes_count,
       COALESCE(c.comments_count, 0) as comments_count,
       (SELECT COUNT(*) > 0 FROM likes WHERE post_id = p.id AND user_id = $1) as is_liked
     FROM posts p
     JOIN users u ON p.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     LEFT JOIN (
       SELECT post_id, COUNT(*) as likes_count
       FROM likes
@@ -392,11 +408,15 @@ export const searchPosts = async (searchTerm, limit = 20, offset = 0) => {
       u.email,
       u.avatar,
       u.role,
+      ug.name_effect AS equipped_name_effect,
+      ug.equipped_frame AS equipped_frame,
+      ug.equipped_badge AS equipped_badge,
       COALESCE(l.likes_count, 0) as likes_count,
       COALESCE(c.comments_count, 0) as comments_count,
       false as is_liked
     FROM posts p
     JOIN users u ON p.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     LEFT JOIN (
       SELECT post_id, COUNT(*) as likes_count
       FROM likes

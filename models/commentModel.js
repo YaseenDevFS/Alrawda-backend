@@ -14,9 +14,13 @@ export const createComment = async (postId, userId, content, parentId = null) =>
 export const getCommentsByPost = async (postId, limit = 50, offset = 0) => {
   const query = `
     SELECT c.*, 
-           u.id as user_id, u.name, u.email, u.avatar
+           u.id as user_id, u.name, u.email, u.avatar,
+           ug.name_effect as equipped_name_effect,
+           ug.equipped_frame as equipped_frame,
+           ug.equipped_badge as equipped_badge
     FROM comments c
     JOIN users u ON c.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     WHERE c.post_id = $1 AND c.is_deleted = false AND c.parent_id IS NULL
     ORDER BY c.created_at ASC
     LIMIT $2 OFFSET $3
@@ -28,9 +32,13 @@ export const getCommentsByPost = async (postId, limit = 50, offset = 0) => {
 export const getReplies = async (commentId, limit = 20, offset = 0) => {
   const query = `
     SELECT c.*, 
-           u.id as user_id, u.name, u.email, u.avatar
+           u.id as user_id, u.name, u.email, u.avatar,
+           ug.name_effect as equipped_name_effect,
+           ug.equipped_frame as equipped_frame,
+           ug.equipped_badge as equipped_badge
     FROM comments c
     JOIN users u ON c.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     WHERE c.parent_id = $1 AND c.is_deleted = false
     ORDER BY c.created_at ASC
     LIMIT $2 OFFSET $3
@@ -42,9 +50,13 @@ export const getReplies = async (commentId, limit = 20, offset = 0) => {
 export const getCommentById = async (commentId) => {
   const query = `
     SELECT c.*, 
-           u.id as user_id, u.name, u.email, u.avatar
+           u.id as user_id, u.name, u.email, u.avatar,
+           ug.name_effect as equipped_name_effect,
+           ug.equipped_frame as equipped_frame,
+           ug.equipped_badge as equipped_badge
     FROM comments c
     JOIN users u ON c.user_id = u.id
+    LEFT JOIN user_gamification ug ON ug.user_id = u.id
     WHERE c.id = $1 AND c.is_deleted = false
   `;
   const result = await pool.query(query, [commentId]);

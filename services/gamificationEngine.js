@@ -1,4 +1,5 @@
 import pool from '../db/db.js';
+import shopProductsModel from '../models/shopProductsModel.js';
 import {
   ACHIEVEMENT_DEFINITIONS,
   ACTIVITY_REWARDS,
@@ -7,7 +8,6 @@ import {
   getPeriod,
   MISSION_DEFINITIONS,
 } from './gamificationConfig.js';
-import { getShopCatalog, getShopItem } from './gamificationCatalog.js';
 
 // All 11 visibility flags default to public (true). Coins, transactions,
 // inventory, and purchases are intentionally NOT in this list — they
@@ -689,7 +689,7 @@ export const claimDailyReward = async (userId) => withTransaction(async (client)
 
 export const purchaseShopItem = async (userId, itemId, idempotencyKey) => withTransaction(async (client) => {
   const wallet = await ensureWallet(client, userId);
-  const item = getShopItem(itemId);
+  const item = await getShopItem(itemId);
   if (!item) throw Object.assign(new Error('Product not found'), { status: 404, code: 'NOT_FOUND' });
   if (!item.available) throw Object.assign(new Error('Product unavailable'), { status: 409, code: 'UNAVAILABLE' });
   const key = String(idempotencyKey || '');
@@ -734,7 +734,7 @@ export const equipInventoryItem = async (userId, slot, itemId) => withTransactio
   const allowedSlots = new Set(['frame', 'background', 'nameEffect', 'profileTheme', 'badge', 'avatar', 'special']);
   if (!allowedSlots.has(slot)) throw Object.assign(new Error('Invalid equip slot'), { status: 400 });
   if (itemId != null) {
-    const item = getShopItem(itemId);
+    const item = await getShopItem(itemId);
     if (!item) throw Object.assign(new Error('Product not found'), { status: 404 });
     const owned = await client.query(`SELECT 1 FROM gamification_inventory WHERE user_id = $1 AND item_id = $2`, [userId, item.id]);
     if (!owned.rows.length) throw Object.assign(new Error('Item is not owned'), { status: 403 });
@@ -757,7 +757,7 @@ export const equipInventoryItems = async (userId, requestedItems = {}) => withTr
   for (const [slot, itemId] of Object.entries(requestedItems)) {
     if (!allowedSlots.has(slot)) throw Object.assign(new Error('Invalid equip slot'), { status: 400 });
     if (itemId == null) continue;
-    const item = getShopItem(itemId);
+    const item = await getShopItem(itemId);
     if (!item || item.category !== expectedCategory[slot]) throw Object.assign(new Error('Item cannot be equipped in this slot'), { status: 400 });
     const owned = await client.query(`SELECT 1 FROM gamification_inventory WHERE user_id = $1 AND item_id = $2`, [userId, item.id]);
     if (!owned.rows.length) throw Object.assign(new Error('Item is not owned'), { status: 403 });
@@ -810,7 +810,8 @@ export const getInventory = async (userId) => withTransaction(async (client) => 
   return { ownedIds: inventory.rows.map((row) => row.item_id), equippedItems: Object.fromEntries(equipped.rows.map((row) => [row.slot, row.item_id])) };
 });
 
-export const getCatalog = () => getShopCatalog();
+export const getCatalog = async () => shopProductsModel.getAllProducts();
+export const getShopItem = async (itemId) => shopProductsModel.getProductById(itemId);
 
 export const startRadioListening = (userId, input) => startRadioSession(userId, input);
 

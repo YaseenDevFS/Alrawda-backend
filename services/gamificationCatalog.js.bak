@@ -85,9 +85,9 @@ const COLLECTION_COUNTS = {
 };
 
 const defaultItems = [
-  { id: 'frame_default', category: 'FRAME', rarity: 'COMMON', price: 0, available: true, limited: false, featured: false, isNew: false, repeatable: false, name: 'Default Frame', description: 'Default Frame - free starter frame' },
-  { id: 'bg_default', category: 'BACKGROUND', rarity: 'COMMON', price: 0, available: true, limited: false, featured: false, isNew: false, repeatable: false, name: 'Default Background', description: 'Default Background - free starter background' },
-  { id: 'theme_default', category: 'THEME', rarity: 'COMMON', price: 0, available: true, limited: false, featured: false, isNew: false, repeatable: false, name: 'Default Name Effect', description: 'Default Name Effect - free starter name effect' },
+  { id: 'frame_default', category: 'FRAME', rarity: 'COMMON', price: 0, available: true, limited: false, featured: false, isNew: false, repeatable: false },
+  { id: 'bg_default', category: 'BACKGROUND', rarity: 'COMMON', price: 0, available: true, limited: false, featured: false, isNew: false, repeatable: false },
+  { id: 'theme_default', category: 'THEME', rarity: 'COMMON', price: 0, available: true, limited: false, featured: false, isNew: false, repeatable: false },
 ];
 
 // Themed item catalogs — each item has a unique, meaningful name and rarity.
@@ -102,7 +102,7 @@ const COLLECTIONS = {
       { name: 'Suhoor Dusk', rarity: 'COMMON' },
       { name: 'Iftar Light', rarity: 'COMMON' },
       { name: 'Laylat Al-Qadr', rarity: 'EPIC' },
-      { name: 'Ramadan Quran Night', rarity: 'RARE' },
+      { name: 'Quran Night', rarity: 'RARE' },
       { name: 'Masjid at Night', rarity: 'UNCOMMON' },
       { name: 'Starry Ramadan', rarity: 'RARE' },
       { name: 'Ramadan Glow', rarity: 'UNCOMMON' },
@@ -259,7 +259,7 @@ const COLLECTIONS = {
       { name: 'Geometric Garden', rarity: 'UNCOMMON' },
       { name: 'Geometric Whisper', rarity: 'COMMON' },
       { name: 'Geometric Glow', rarity: 'RARE' },
-      { name: 'Geometric Heritage II', rarity: 'EPIC' },
+      { name: 'Geometric Heritage', rarity: 'EPIC' },
       { name: 'Geometric Crown', rarity: 'LEGENDARY' },
     ],
   },
@@ -340,7 +340,7 @@ const COLLECTIONS = {
   hajj: {
     label: 'Hajj / Umrah Collection',
     items: [
-      { name: 'Hajj Pilgrim Eid', rarity: 'RARE' },
+      { name: 'Hajj Pilgrim', rarity: 'RARE' },
       { name: 'Umrah Light', rarity: 'UNCOMMON' },
       { name: 'Ihram White', rarity: 'COMMON' },
       { name: 'Kaaba Visit', rarity: 'EPIC' },
@@ -349,12 +349,12 @@ const COLLECTIONS = {
       { name: 'Muzdalifah', rarity: 'RARE' },
       { name: 'Haram Visit', rarity: 'EPIC' },
       { name: 'Journey to Makkah', rarity: 'EPIC' },
-      { name: 'Hajj Reflection Eid', rarity: 'RARE' },
-      { name: 'Hajj Peace Eid', rarity: 'RARE' },
+      { name: 'Hajj Reflection', rarity: 'RARE' },
+      { name: 'Hajj Peace', rarity: 'RARE' },
       { name: 'Talbiyah', rarity: 'COMMON' },
       { name: 'Sa\'i Echo', rarity: 'COMMON' },
       { name: 'Hajj Heritage', rarity: 'EPIC' },
-      { name: 'Hajj Light Eid', rarity: 'UNCOMMON' },
+      { name: 'Hajj Light', rarity: 'UNCOMMON' },
       { name: 'Hajj Dusk', rarity: 'RARE' },
       { name: 'Hajj Echo', rarity: 'EPIC' },
     ],
