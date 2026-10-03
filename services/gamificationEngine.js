@@ -9,6 +9,23 @@ import {
 } from './gamificationConfig.js';
 import { getShopCatalog, getShopItem } from './gamificationCatalog.js';
 
+// All 11 visibility flags default to public (true). Coins, transactions,
+// inventory, and purchases are intentionally NOT in this list — they
+// are private wallet data and must never be exposed to other users.
+const DEFAULT_VISIBILITY = {
+  level: true,
+  xp: true,
+  progressPercentage: true,
+  streak: true,
+  achievements: true,
+  featuredBadges: true,
+  frame: true,
+  background: true,
+  nameEffect: true,
+  profileTheme: true,
+  avatar: true,
+};
+
 const BADGE_DEFINITIONS = [
   { id: 'quran_explorer', counter: 'quranPagesRead', target: 10, coins: 30 },
   { id: 'quran_companion', counter: 'quranPagesRead', target: 100, coins: 75 },
@@ -270,6 +287,17 @@ const syncPublicSnapshot = async (client, userId, wallet) => {
   ]);
   const prior = preferences.rows[0] || {};
   const equipped = Object.fromEntries(equippedResult.rows.map((row) => [row.slot, row.item_id]));
+
+  // Always keep all 11 visibility flags on the row. New rows start with
+  // the full DEFAULT_VISIBILITY (everything public except private wallet
+  // data). Existing rows keep the user's preferences. We merge so a user
+  // who toggled one flag off doesn't accidentally lose the others if the
+  // stored JSON happens to be sparse.
+  const storedVisibility = (prior.visibility && typeof prior.visibility === 'object')
+    ? prior.visibility
+    : {};
+  const mergedVisibility = { ...DEFAULT_VISIBILITY, ...storedVisibility };
+
   await client.query(
     `INSERT INTO user_gamification (
        user_id, level, total_xp, current_streak, best_streak,
@@ -285,6 +313,7 @@ const syncPublicSnapshot = async (client, userId, wallet) => {
        name_effect = EXCLUDED.name_effect, equipped_badge = EXCLUDED.equipped_badge,
        equipped_profile_theme = EXCLUDED.equipped_profile_theme, equipped_avatar_item = EXCLUDED.equipped_avatar_item,
        achievement_count = EXCLUDED.achievement_count, badge_count = EXCLUDED.badge_count,
+       visibility = EXCLUDED.visibility,
        last_sync_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`,
     [
       userId, wallet.level, wallet.xp, wallet.current_streak, wallet.longest_streak,
@@ -292,7 +321,7 @@ const syncPublicSnapshot = async (client, userId, wallet) => {
       equipped.badge || null, equipped.profileTheme || null, equipped.avatar || null,
       JSON.stringify(prior.featured_badges || []), JSON.stringify(prior.featured_achievements || []),
       asNumber(achievements.rows[0]?.count), asNumber(badges.rows[0]?.count),
-      JSON.stringify(prior.visibility || {}),
+      JSON.stringify(mergedVisibility),
     ],
   );
 };

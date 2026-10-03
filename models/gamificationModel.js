@@ -70,68 +70,73 @@ export const getGamificationForViewer = async (viewedUserId, viewerUserId) => {
     [viewedUserId],
   );
   const row = result.rows[0];
-  if (!row) {
-    // No record yet — return a minimal default payload. We still respect
-    // the privacy of "not configured yet" by not exposing anything.
-    return null;
-  }
 
-  const visibility = row.visibility && typeof row.visibility === 'object'
-    ? row.visibility
+  // Visibility flags always default to fully-public. A user who has not
+  // configured anything yet still has their level, streak, achievements,
+  // and equipped cosmetics shown to other viewers by default — but NEVER
+  // coins, transactions, or inventory. The viewed user can opt out via
+  // PUT /profile/preferences.
+  const visibility = (row && row.visibility && typeof row.visibility === 'object')
+    ? { ...DEFAULT_VISIBILITY, ...row.visibility }
     : DEFAULT_VISIBILITY;
 
-  // Build public payload based on visibility flags.
+  // Build public payload — always non-null so the client can render the
+  // gamification section even when the viewed user has not configured
+  // any features yet.
   const publicData = { userId: String(viewedUserId) };
-  const levelProgress = getLevelForXP(Number(row.total_xp) || 0);
+
+  // If no row exists yet, expose only safe defaults (level 1, no streak,
+  // no achievements, no equipped items) so the viewer UI does not
+  // silently disappear. Coins / transactions / inventory are NEVER
+  // returned here.
+  const level = Number(row?.level) || 1;
+  const totalXp = Number(row?.total_xp) || 0;
+  const currentStreak = Number(row?.current_streak) || 0;
+  const bestStreak = Number(row?.best_streak) || 0;
+  const levelProgress = getLevelForXP(totalXp);
 
   if (visibility.level !== false) {
-    publicData.level = row.level;
+    publicData.level = level;
   }
   if (visibility.xp !== false && visibility.progressPercentage !== false) {
-    // Both xp & progress % on
-    publicData.xp = {
-      current: row.total_xp, // raw number
-    };
+    publicData.xp = { current: totalXp };
     publicData.progressPercentage = Math.round(levelProgress.progress * 100);
   } else if (visibility.progressPercentage !== false) {
     publicData.progressPercentage = Math.round(levelProgress.progress * 100);
   }
   if (visibility.streak !== false) {
-    publicData.streak = {
-      current: row.current_streak,
-      best: row.best_streak,
-    };
+    publicData.streak = { current: currentStreak, best: bestStreak };
   }
   if (visibility.featuredBadges !== false) {
-    publicData.featuredBadges = Array.isArray(row.featured_badges)
+    publicData.featuredBadges = Array.isArray(row?.featured_badges)
       ? row.featured_badges
       : [];
   }
   if (visibility.achievements !== false) {
-    publicData.featuredAchievements = Array.isArray(row.featured_achievements)
+    publicData.featuredAchievements = Array.isArray(row?.featured_achievements)
       ? row.featured_achievements
       : [];
-    publicData.achievementCount = row.achievement_count;
-    publicData.badgeCount = row.badge_count;
+    publicData.achievementCount = Number(row?.achievement_count) || 0;
+    publicData.badgeCount = Number(row?.badge_count) || 0;
   }
   if (visibility.frame !== false) {
-    publicData.equippedFrame = row.equipped_frame;
+    publicData.equippedFrame = row?.equipped_frame || null;
   }
   if (visibility.background !== false) {
-    publicData.equippedBackground = row.equipped_background;
+    publicData.equippedBackground = row?.equipped_background || null;
   }
   if (visibility.nameEffect !== false) {
-    publicData.nameEffect = row.name_effect;
+    publicData.nameEffect = row?.name_effect || null;
   }
   if (visibility.profileTheme !== false) {
-    publicData.equippedProfileTheme = row.equipped_profile_theme;
+    publicData.equippedProfileTheme = row?.equipped_profile_theme || null;
   }
   if (visibility.avatar !== false) {
-    publicData.equippedAvatarItem = row.equipped_avatar_item;
+    publicData.equippedAvatarItem = row?.equipped_avatar_item || null;
   }
 
-  // Always expose these are protected so a viewer can still navigate.
   publicData.isOwn = String(viewedUserId) === String(viewerUserId);
+  publicData.publicRecord = !!row;
 
   return publicData;
 };
